@@ -9,6 +9,8 @@ from typing import NamedTuple
 from agent import Agent
 from llm import LLM
 
+from reasoners.algorithm import DFS
+
 env = get_env("miniwob.login-user")
 obs, env_info = reset_env(env)
 # obs = get_serializable_obs(env.unwrapped, obs)
@@ -18,8 +20,9 @@ obs, env_info = reset_env(env)
 
 llm = LLM(model="gpt-4o-mini",
           api_key="[key]")
-agent = Agent(llm, use_world_model_planning=True, use_intent_only_memory=True)
 # agent = Agent(llm, use_world_model_planning=False, use_intent_only_memory=True)
+agent = Agent(llm, use_world_model_planning=True, use_intent_only_memory=True,
+              algorithm=DFS(max_per_state=5, depth=1, prior=False))
 # action, info = agent.get_action(obs)
 # print(action)
 

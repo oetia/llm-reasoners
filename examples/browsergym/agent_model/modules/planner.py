@@ -29,7 +29,7 @@ class PolicyPlanner(AgentModule):
 
 
 class LLMReasonerPlanner(AgentModule):
-    def __init__(self, policy, world_model, critic, **kwargs):
+    def __init__(self, policy, world_model, critic, algorithm, **kwargs):
         super().__init__()
         self.policy = policy
         self.world_model = world_model
@@ -40,7 +40,8 @@ class LLMReasonerPlanner(AgentModule):
             policy, critic, **kwargs)
         # self.reasoner_search_algo = MCTS(
         #     output_trace_in_each_iter=True, disable_tqdm=False)
-        self.reasoner_search_algo = DFS(max_per_state=5, depth=1, prior=False)
+        # self.reasoner_search_algo = DFS(max_per_state=5, depth=1, prior=False)
+        self.reasoner_search_algo = algorithm
         self.reasoner = Reasoner(
             world_model=self.reasoner_world_model,
             search_config=self.reasoner_search_config,

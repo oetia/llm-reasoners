@@ -5,6 +5,8 @@ from functools import partial
 
 from llm import LLM
 
+from reasoners import SearchAlgorithm
+from reasoners.algorithm import DFS
 
 from agent_model.modules import (
     LLMReasonerPlanner,
@@ -52,7 +54,10 @@ class Agent():
     def __init__(self,
                  llm: LLM,
                  use_world_model_planning: bool,
-                 use_intent_only_memory: bool):
+                 use_intent_only_memory: bool,
+                 algorithm: SearchAlgorithm = DFS(  # only used in world_model_planning
+                     max_per_state=5, depth=1, prior=False)
+                 ):
         self.llm = llm
         self.action_space = BrowserActionSpace(
             action_subsets=['chat', 'bid'],
@@ -116,7 +121,7 @@ end the task once it sends a message to the user.'
 
             # self.planner = PolicyPlanner(self.policy)
             self.planner = LLMReasonerPlanner(
-                self.policy, self.world_model, self.critic)
+                self.policy, self.world_model, self.critic, algorithm=algorithm)
 
         else:
             self.policy = PromptedPolicy(
