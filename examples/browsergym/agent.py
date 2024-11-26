@@ -35,7 +35,7 @@ from utils import ParseError, parse_html_tags_raise
 
 import logging
 
-logger = logging.getLogger("test")
+logger = logging.getLogger("testing")
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
@@ -139,7 +139,6 @@ end the task once it sends a message to the user.'
 
     def get_action(self, raw_obs: dict):
         observation, info = self.observation_space.parse_observation(raw_obs)
-
         if info.get('return_action') is not None:
             step = {
                 'observation': observation,
@@ -153,9 +152,11 @@ end the task once it sends a message to the user.'
         self.identity.update(user_instruction=observation['goal'])
 
         obs_txt = observation['clean_axtree_txt']
+        obs_screenshot = observation['screenshot_som_base64']
         logger.info(f'*Observation*: {obs_txt}')
 
-        state = self.encoder(obs_txt, self.memory)["state"]
+        # state = self.encoder(obs_txt, self.memory)["state"]
+        state = self.encoder(obs_txt, obs_screenshot, self.memory)["state"]
         logger.info(f'*State*: {state}')
 
         planner_algorithm_output = None  # search algorihtm trace for visualization
@@ -167,7 +168,8 @@ end the task once it sends a message to the user.'
             intent = self.planner(state, self.memory)['intent']
         logger.info(f'*Intent*: {intent}')
 
-        action = self.actor(obs_txt, state, self.memory, intent)['action']
+        action = self.actor(obs_txt, obs_screenshot, state,
+                            self.memory, intent)['action']
         logger.info(f'*Action*: {action}')
 
         step = {

@@ -133,6 +133,7 @@ class BrowserGymObservationSpace(BaseObservationSpace):
             'clean_axtree_txt': obs_prompt,
             'error_prefix': error_prefix,
             'goal': self.goal,
+            'screenshot_som_base64': obs['screenshot_som_base64'],
         }
 
         if error_prefix:

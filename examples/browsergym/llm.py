@@ -12,20 +12,34 @@ class LLM:
         self.model = model
         self.client = openai.Client(api_key=api_key)
 
-    def __call__(self, system_prompt: str, user_prompt: str, parser: Callable[[str], Tuple[str, bool, Optional[str]]] = IDENTITY, **kwargs):
+    def __call__(self, system_prompt: str, user_prompt: str, base64_image: str = None, parser: Callable[[str], Tuple[str, bool, Optional[str]]] = IDENTITY, **kwargs):
 
-        print("KWARGS BEING PASSED TO OPENAI API")
+        print("KWARSG BEING PASSED TO OPENAI API")
         print(kwargs)
-
-        response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
-            # model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            **kwargs
-        )
+        response = None
+        if base64_image is None:
+            print("1 - using text only")
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                **kwargs
+            )
+        else:
+            print("2 - screenshot passed in as well")
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": [
+                        {"type": "text", "text": user_prompt},
+                        {"type": "image_url", "image_url": {"url": base64_image}}
+                    ]}
+                ],
+                **kwargs
+            )
 
         answer_dicts = []
         for choice in response.choices:

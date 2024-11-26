@@ -20,13 +20,14 @@ class PromptedEncoder(BaseEncoder):
         self.prompt_template = prompt_template
         self.parser = parser
 
-    def __call__(self, observation, memory, **kwargs):
+    def __call__(self, observation_text, observation_screenshot, memory, **kwargs):
         user_prompt = self.prompt_template.format(
-            observation=observation, memory=memory, **kwargs
+            observation=observation_text, memory=memory, **kwargs
         )
 
         llm_outputs = self.llm(
-            system_prompt=str(self.identity), user_prompt=user_prompt, parser=self.parser, **kwargs
+            # system_prompt=str(self.identity), user_prompt=user_prompt, parser=self.parser, **kwargs
+            system_prompt=str(self.identity), user_prompt=user_prompt, base64_image=observation_screenshot, parser=self.parser, **kwargs
         )
 
         return llm_outputs[0]

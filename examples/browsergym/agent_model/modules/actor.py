@@ -14,13 +14,13 @@ class PromptedActor(BaseActor):
         self.prompt_template = prompt_template
         self.parser = parser
 
-    def __call__(self, observation, state, memory, intent, **kwargs):
+    def __call__(self, observation, observation_screenshot, state, memory, intent, **kwargs):
 
         user_prompt = self.prompt_template.format(
             observation=observation, state=state, memory=memory, intent=intent, **kwargs
         )
         llm_outputs = self.llm(
-            system_prompt=str(self.identity), user_prompt=user_prompt, parser=self.parser, **kwargs
+            system_prompt=str(self.identity), user_prompt=user_prompt, base64_image=observation_screenshot, parser=self.parser, **kwargs
         )
 
         return llm_outputs[0]

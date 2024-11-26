@@ -200,7 +200,7 @@ class SearchConfigWrapper(ReasonersSearchConfig):
         return reward, {'scores': scores, 'thoughts': thoughts}
 
     def _cluster_actions(self, action2freqs):
-        api_key = '[key]'
+        api_key = "[key]"
         client = OpenAI(api_key=api_key)
         action_candidate_dict = {
             i: action for i, action in enumerate(action2freqs.keys())

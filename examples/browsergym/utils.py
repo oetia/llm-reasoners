@@ -6,7 +6,7 @@ from PIL import Image
 
 import re
 
-from browsergym.utils.obs import flatten_axtree_to_str, flatten_dom_to_str, prune_html
+from browsergym.utils.obs import flatten_axtree_to_str, flatten_dom_to_str, prune_html, overlay_som
 
 # OTHER MSIC. UTILS
 
@@ -251,6 +251,21 @@ def get_serializable_obs(env, obs):
     scroll_position = get_scroll_position(env.page)
     obs['scroll_position'] = scroll_position
     # make observation serializable
+    # obs["screenshot"] = overlay_som(screenshot=obs["screenshot"], extra_properties=)
+
+    obs["screenshot_som"] = overlay_som(
+        obs["screenshot"], extra_properties=obs["extra_element_properties"]
+    )
+    obs["screenshot_som_base64"] = image_to_jpg_base64_url(
+        obs["screenshot_som"])
+
+    # print(obs["screenshot_som_base64"])
+
+    # save som image
+    # print(type(obs["screenshot_som"]))
+    # save numpy array to png
+    # Image.fromarray(obs["screenshot_som"]).save("screenshot_som___.png")
+
     obs['screenshot'] = image_to_jpg_base64_url(obs['screenshot'])
     obs['active_page_index'] = obs['active_page_index'].item()
     obs['elapsed_time'] = obs['elapsed_time'].item()
