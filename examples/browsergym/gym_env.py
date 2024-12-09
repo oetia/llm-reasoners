@@ -16,6 +16,7 @@ from reasoners.visualization import visualize
 from reasoners.visualization.tree_snapshot import NodeData, EdgeData
 from reasoners.algorithm.mcts import MCTSNode
 
+import os
 import re
 import json
 import pickle
@@ -60,8 +61,7 @@ class Environment(WorldModel):
         return StateGym(step_idx=0, last_obs={}, current_obs=obs, action_history=[], reward=0, terminated=False, truncated=False)
 
     def step(self, state: StateGym, action: Action):
-
-        if self.env_current_obs != state.current_obs:  # reset if backtracking needed
+        if self.env_current_obs != state.current_obs:
             self.env.reset(seed=self.env_seed)
             for action in state.action_history:
                 self.env.step(action)
@@ -70,17 +70,17 @@ class Environment(WorldModel):
                 action)
             if self.obs_preprocessor is not None:
                 obs = self.obs_preprocessor(obs)
-            self.env_current_obs = obs  # FUCK
+            self.env_current_obs = obs
 
             next_state = StateGym(step_idx=state.step_idx + 1,
                                   last_obs=state.current_obs, current_obs=obs,
                                   action_history=state.action_history +
                                   [action],
                                   reward=reward, terminated=terminated, truncated=truncated)
-        except NameError as e:  # invalid action passed in
-            raise e
 
-        return next_state, {"env_reward": reward}
+            return next_state, {"env_reward": reward}
+        except NameError as e:  # invalid action passed in
+            return state, {"env_reward": 0}
 
     def is_terminal(self, state: StateGym) -> bool:
         return state.terminated or state.truncated or state.step_idx >= self.max_steps
@@ -164,19 +164,24 @@ def run_task(task_name: str):
         record_video=True,
     )
 
+    # check to see if directory exists
+    if not os.path.exists(f"./results/tree-search/{task_name}"):
+        os.makedirs(f"./results/tree-search/{task_name}")
+
     env = env_args.make_env(
         action_mapping=browser_action_set.to_python_code,
-        exp_dir="./results",
+        exp_dir=f"./results/tree-search/{task_name}",
     )
 
     llm = OpenAIModel(model="gpt-4o-mini")
 
     world_model = Environment(env=env, obs_preprocessor=obs_preprocessor)
     search_config = SearchConfigBrowsergym(
-        action_set=browser_action_set, llm=llm, use_axtree=True, use_html=False, use_screenshot=False)
-    algorithm = MCTS(n_iters=2,
-                     depth_limit=5,
+        action_set=browser_action_set, n_proposals=10, llm=llm, use_axtree=True, use_html=False, use_screenshot=False)
+    algorithm = MCTS(n_iters=10,
+                     depth_limit=10,
                      w_exp=10**.5,
+                     #  w_exp=2**.5,
                      uct_with_fast_reward=True,
                      disable_tqdm=False,
                      output_trace_in_each_iter=True)
@@ -185,7 +190,7 @@ def run_task(task_name: str):
 
     result_rap = reasoner("")
 
-    with open(f"./logs_miniwob/{task_name}.pkl", "wb") as f:
+    with open(f"./results/tree-search/{task_name}/result.pkl", "wb") as f:
         pickle.dump(result_rap, f)
 
     def browsergym_node_data_factory(n: MCTSNode) -> NodeData:
@@ -212,10 +217,50 @@ def run_task(task_name: str):
               node_data_factory=browsergym_node_data_factory,
               edge_data_factory=browsergym_edge_data_factory)
 
+    with open(f"./results/tree-search/{task_name}/success.txt", "w") as f:
+        if result_rap.terminal_state.reward == 1.0:
+            f.write("TASK COMPLETED SUCCESSFULLY")
+        else:
+            f.write("TASK FAILED")
+
 
 if __name__ == "__main__":
+
+    tasks = [
+        "webarena.27", "webarena.28", "webarena.29",  # failure
+        "webarena.30", "webarena.31",  # failure
+
+        # change bio to ...
+        "webarena.399", "webarena.400", "webarena.401",  # success
+        "webarena.402", "webarena.403"  # failure. strage considering it got it right before
+        "webarena.405", "webarena.406",  # failure
+        "webarena.410",  # failure
+
+        "webarena.596",  # failure
+        "webarena.597",  # failure
+
+        "webarena.599",  # failure
+        "webarena.619",  # failure
+
+        "webarena.642",  # failure
+        "webarena.66",  # failure
+        "webarena.67",  # failure
+        "webarena.68",  # failuk
+        "webarena.68",  # failure
+        "webarena.69",  # failure
+        "webarena.718",  # failure
+        "webarena.731"  # failure
+    ]
+
+    for task in tasks:
+        try:
+            run_task(task)
+        except Exception as e:
+            pass
+
     # run_task("miniwob.login-user")
+
     # run_task("miniwob.buy-ticket")
     # run_task("miniwob.form-sequence")
-    run_task("webarena.596")
+    # run_task("webarena.596")
     # run_task("webarena.27")
