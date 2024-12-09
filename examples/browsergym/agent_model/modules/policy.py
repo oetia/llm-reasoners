@@ -21,7 +21,7 @@ class PromptedPolicy(BasePolicy):
         user_prompt = self.prompt_template.format(
             state=state, memory=memory, **kwargs)
         llm_output = self.llm(
-            system_prompt=str(self.identity), user_prompt=user_prompt, parser=self.parser, **llm_kwargs
+            systehm_prompt=str(self.identity), user_prompt=user_prompt, parser=self.parser, **llm_kwargs
         )
 
         return llm_output
