@@ -35,7 +35,8 @@ class VisualizerClient:
         response = requests.post(url, headers=headers, data=data)
 
         if response.status_code != 200:
-            print(f"POST Log failed with status code: {response.status_code}, message: {response.text}")
+            print(
+                f"POST Log failed with status code: {response.status_code}, message: {response.text}")
             return None
 
         return self.TreeLogReceipt(**response.json())
@@ -45,6 +46,8 @@ def present_visualizer(receipt: VisualizerClient.TreeLogReceipt):
     import webbrowser
     print(f"Visualizer URL: {receipt.access_url}")
     webbrowser.open(receipt.access_url)
+    # with open("./results/tree-search/visualizer_urls.txt", "a") as f:
+    #     f.write(f"{receipt.access_url}\n")
 
 
 def visualize(result: Union[TreeLog, MCTSResult, BeamSearchResult, DFSResult], **kwargs):

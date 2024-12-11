@@ -13,6 +13,7 @@ from browsergym.core.chat import Chat
 from browsergym.core.env import BrowserEnv
 from browsergym.experiments import EnvArgs
 from browsergym.utils.obs import flatten_axtree_to_str, flatten_dom_to_str, prune_html
+from browsergym.core.action.parsers import highlevel_action_parser
 
 from reasoners import SearchConfig, WorldModel, LanguageModel
 
@@ -640,3 +641,20 @@ def obs_preprocessor(obs: dict) -> dict:
         "axtree_txt": flatten_axtree_to_str(obs["axtree_object"]),
         "pruned_html": prune_html(flatten_dom_to_str(obs["dom_object"])),
     }
+
+
+valid_action_types = ["noop", "scroll", "keyboard_press", "click", "fill", "hover", "tab_focus", "new_tab",
+                      "go_back", "go_forward", "goto", "tab_close", "select_option", "send_msg_to_user", "report_infeasible"]
+
+
+def check_validity_of_action_proposal(action_proposal: str):
+    function_calls = highlevel_action_parser.search_string(
+        action_proposal)
+    function_calls = sum(function_calls.as_list(), [])
+    python_code = ""
+    for function_name, function_args in function_calls:
+
+        if function_name not in valid_action_types:
+            return False
+
+    return True

@@ -3,7 +3,7 @@ from abc import abstractmethod, ABC
 import gymnasium as gym
 from typing import NamedTuple, Callable, Any
 
-from support import get_env, build_propose_prompt, build_evaluation_prompt, obs_preprocessor
+from support import get_env, build_propose_prompt, build_evaluation_prompt, obs_preprocessor, check_validity_of_action_proposal
 from browsergym.core.action.highlevel import HighLevelActionSet
 from browsergym.experiments import EnvArgs
 from browsergym.core.action.parsers import highlevel_action_parser
@@ -118,10 +118,12 @@ class SearchConfigBrowsergym(SearchConfig):
         clustered_actions = []
         action_codes = set()
         for action_proposal in action_proposals:
-            action_code = self.action_set.to_python_code(action_proposal)
-            if action_code not in action_codes:
-                action_codes.add(action_code)
-                clustered_actions.append(action_proposal)
+
+            if check_validity_of_action_proposal(action_proposal):
+                action_code = self.action_set.to_python_code(action_proposal)
+                if action_code not in action_codes:
+                    action_codes.add(action_code)
+                    clustered_actions.append(action_proposal)
 
         return clustered_actions
 
@@ -160,7 +162,7 @@ def run_task(task_name: str):
         task_name=task_name,
         task_seed=42,
         max_steps=100,
-        headless=False,
+        headless=True,
         record_video=True,
     )
 
@@ -213,9 +215,9 @@ def run_task(task_name: str):
                         "self_eval": n.fast_reward_details["self_eval"],
                          "action": python_code})
 
-    visualize(result_rap,
-              node_data_factory=browsergym_node_data_factory,
-              edge_data_factory=browsergym_edge_data_factory)
+    # visualize(result_rap,
+    #           node_data_factory=browsergym_node_data_factory,
+    #           edge_data_factory=browsergym_edge_data_factory)
 
     with open(f"./results/tree-search/{task_name}/success.txt", "w") as f:
         if result_rap.terminal_state.reward == 1.0:
@@ -223,39 +225,51 @@ def run_task(task_name: str):
         else:
             f.write("TASK FAILED")
 
+    env.close()
+
 
 if __name__ == "__main__":
 
     tasks = [
-        "webarena.27", "webarena.28", "webarena.29",  # failure
-        "webarena.30", "webarena.31",  # failure
+        # "webarena.27", # failure
+        # "webarena.28", # failure
+        # "webarena.29",  # failure
+        # "webarena.30",  # failure
+        # "webarena.31",  # failure
 
         # change bio to ...
-        "webarena.399", "webarena.400", "webarena.401",  # success
-        "webarena.402", "webarena.403"  # failure. strage considering it got it right before
-        "webarena.405", "webarena.406",  # failure
-        "webarena.410",  # failure
+        # "webarena.399", # success
+        # "webarena.400", # success
+        # "webarena.401",  # success
+        # "webarena.402",  #  success
+        # "webarena.403", # success
 
-        "webarena.596",  # failure
-        "webarena.597",  # failure
+        # "webarena.405", # failure
+        # "webarena.406",  # failure
+        # "webarena.410",  # failure
 
-        "webarena.599",  # failure
-        "webarena.619",  # failure
+        # ultimately same tasks
+        # "webarena.596",  # failure
+        # "webarena.597",  # failure
+        # "webarena.599",  # success
 
-        "webarena.642",  # failure
-        "webarena.66",  # failure
-        "webarena.67",  # failure
-        "webarena.68",  # failuk
-        "webarena.68",  # failure
-        "webarena.69",  # failure
-        "webarena.718",  # failure
-        "webarena.731"  # failure
+        # "webarena.619",  # failure
+
+        # "webarena.642",  # failure
+        # "webarena.66",  # failure
+        # "webarena.67",  # failure
+        # "webarena.68",  # failuk
+        # "webarena.69",  # success
+        # "webarena.718",  # failure
+        # "webarena.731"  # success
     ]
 
     for task in tasks:
+        print(task)
         try:
             run_task(task)
         except Exception as e:
+            print(e)
             pass
 
     # run_task("miniwob.login-user")
