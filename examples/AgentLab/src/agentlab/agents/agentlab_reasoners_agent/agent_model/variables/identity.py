@@ -30,8 +30,8 @@ class AgentInstructionEnvironmentIdentity(BaseIdentity):
         self.user_instruction = user_instruction
 
     def get_value(self):
-        current_datetime = datetime.now().strftime('%a, %b %d, %Y %H:%M:%S')
-        
+        current_datetime = datetime.now().strftime("%a, %b %d, %Y %H:%M:%S")
+
         return f"""\
 # Name:
 {self.agent_name}

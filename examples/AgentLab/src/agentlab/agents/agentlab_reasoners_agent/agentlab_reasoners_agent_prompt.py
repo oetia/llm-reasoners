@@ -30,7 +30,7 @@ class ReasonersPromptFlags(dp.Flags):
 
     obs: dp.ObsFlags
     action: dp.ActionFlags
-    use_plan: bool = False  #
+    use_plan: bool = True  #
     use_criticise: bool = False  #
     use_thinking: bool = False
     use_memory: bool = False  #
@@ -44,6 +44,8 @@ class ReasonersPromptFlags(dp.Flags):
     add_missparsed_messages: bool = True
     max_trunc_itr: int = 20
     flag_group: str = None
+    # Added by @zj from mk
+    use_intent_only_memory: bool = False
 
 
 class EncoderPrompt(dp.Shrinkable):
@@ -60,8 +62,7 @@ class EncoderPrompt(dp.Shrinkable):
     ) -> None:
         super().__init__()
         self.flags = flags
-        self.history = dp.History(
-            obs_history, actions, memories, thoughts, flags.obs)
+        self.history = dp.History(obs_history, actions, memories, thoughts, flags.obs)
         self.instructions = dp.EncoderInstructions()
         self.obs = dp.Observation(
             obs_history[-1],
@@ -97,6 +98,7 @@ class EncoderPrompt(dp.Shrinkable):
 
 # functions very similarly to main prompt
 
+
 class PolicyPrompt(dp.Shrinkable):
     def __init__(
         self,
@@ -112,8 +114,7 @@ class PolicyPrompt(dp.Shrinkable):
     ) -> None:
         super().__init__()
         self.flags = flags
-        self.history = dp.History(
-            obs_history, actions, memories, thoughts, flags.obs)
+        self.history = dp.History(obs_history, actions, memories, thoughts, flags.obs)
         self.instructions = dp.PolicyInstructions()
 
         self.obs = dp.Observation(
@@ -121,8 +122,7 @@ class PolicyPrompt(dp.Shrinkable):
             self.flags.obs,
         )
 
-        self.action_prompt = dp.ActionPrompt(
-            action_set, action_flags=flags.action)
+        self.action_prompt = dp.ActionPrompt(action_set, action_flags=flags.action)
 
         def time_for_caution():
             # no need for caution if we're in single action mode
@@ -185,13 +185,13 @@ class ActorPrompt(dp.Shrinkable):
         thoughts: list[str],
         previous_plan: str,
         step: int,
-        state: str, intent: str,
+        # summary_state: str
+        plan_steps_string: str,
         flags: ReasonersPromptFlags,
     ) -> None:
         super().__init__()
         self.flags = flags
-        self.history = dp.History(
-            obs_history, actions, memories, thoughts, flags.obs)
+        self.history = dp.History(obs_history, actions, memories, thoughts, flags.obs)
         self.instructions = dp.ActorInstructions()
 
         self.obs = dp.Observation(
@@ -199,8 +199,7 @@ class ActorPrompt(dp.Shrinkable):
             self.flags.obs,
         )
 
-        self.action_prompt = dp.ActionPrompt(
-            action_set, action_flags=flags.action)
+        self.action_prompt = dp.ActionPrompt(action_set, action_flags=flags.action)
 
         def time_for_caution():
             # no need for caution if we're in single action mode
@@ -211,17 +210,20 @@ class ActorPrompt(dp.Shrinkable):
         self.be_cautious = dp.BeCautious(visible=time_for_caution)
         self.think = dp.Think(visible=lambda: flags.use_thinking)
         self.hints = dp.Hints(visible=lambda: flags.use_hints)
-        self.plan = Plan(previous_plan, step, lambda: flags.use_plan)
+        self.plan = Plan(previous_plan, step, plan_steps_string, lambda: flags.use_plan)
         self.criticise = Criticise(visible=lambda: flags.use_criticise)
         self.memory = Memory(visible=lambda: flags.use_memory)
 
+        self.plan_steps_string = plan_steps_string
+
         # i don't think it makes sense to create a dp.PropmtElement for this. prompt element seems to be an abstraction for providing examples.
-        self.state = f"""\n# Current State:
-{state}
-"""
-        self.intent = f"""\n# Intent:
-{intent}
-"""
+        # self.summary_state = f"""\n# Current State (summarized):
+        # {summary_state}
+        # """
+
+    #         self.plan_steps_string = f"""\n# Planned next few actions (refer to them to select the next action):
+    # {plan_steps_string}
+    # """
 
     @property
     def _prompt(self) -> HumanMessage:
@@ -237,10 +239,48 @@ class ActorPrompt(dp.Shrinkable):
 {self.plan.prompt}\
 {self.memory.prompt}\
 {self.criticise.prompt}\
-{self.state}\
-{self.intent}\
 """
         )
+        if self.flags.use_abstract_example:
+            prompt.add_text(
+                f"""
+# Abstract Example
+
+Here is an abstract version of the answer with description of the content of
+each tag. Make sure you follow this structure, but replace the content with your
+answer:
+{self.think.abstract_ex}\
+{self.memory.abstract_ex}\
+{self.criticise.abstract_ex}\
+{self.action_prompt.abstract_ex}\
+"""
+            )
+            if self.plan_steps_string is None:
+                prompt.add_text(
+                    f"""
+{self.plan.abstract_ex}
+"""
+                )
+
+        if self.flags.use_concrete_example:
+            prompt.add_text(
+                f"""
+# Concrete Example
+
+Here is a concrete example of how to format your answer.
+Make sure to follow the template with proper tags:
+{self.think.concrete_ex}\
+{self.memory.concrete_ex}\
+{self.criticise.concrete_ex}\
+{self.action_prompt.concrete_ex}\
+"""
+            )
+            if self.plan_steps_string is None:
+                prompt.add_text(
+                    f"""
+{self.plan.concrete_ex}
+"""
+                )
 
         return self.obs.add_screenshot(prompt)
 
@@ -278,15 +318,24 @@ focusable for elements of the form at next step.
 
 
 class Plan(dp.PromptElement):
-    def __init__(self, previous_plan, plan_step, visible: bool = True) -> None:
+    def __init__(
+        self, previous_plan, plan_step, plan_steps_string=None, visible: bool = True
+    ) -> None:
         super().__init__(visible=visible)
         self.previous_plan = previous_plan
-        self._prompt = f"""
+        self.plan_steps_string = plan_steps_string
+        if plan_steps_string is None:
+            self._prompt = f"""
 # Plan:
 
 You just executed step {plan_step} of the previously proposed plan:\n{previous_plan}\n
 After reviewing the effect of your previous actions, verify if your plan is still
 relevant and update it if necessary.
+"""
+        else:
+            self._prompt = f"""
+# Planned next few actions (refer to them to select the next action):
+{plan_steps_string}. \nThe last step index is {plan_step}.
 """
 
     _abstract_ex = """

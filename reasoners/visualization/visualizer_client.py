@@ -31,11 +31,13 @@ class VisualizerClient:
             data = json.dumps(data)
 
         url = f"{self.base_url}/logs"
-        headers = {'Content-Type': 'application/json'}
+        headers = {"Content-Type": "application/json"}
         response = requests.post(url, headers=headers, data=data)
 
         if response.status_code != 200:
-            print(f"POST Log failed with status code: {response.status_code}, message: {response.text}")
+            print(
+                f"POST Log failed with status code: {response.status_code}, message: {response.text}"
+            )
             return None
 
         return self.TreeLogReceipt(**response.json())
@@ -43,11 +45,14 @@ class VisualizerClient:
 
 def present_visualizer(receipt: VisualizerClient.TreeLogReceipt):
     import webbrowser
+
     print(f"Visualizer URL: {receipt.access_url}")
     webbrowser.open(receipt.access_url)
 
 
-def visualize(result: Union[TreeLog, MCTSResult, BeamSearchResult, DFSResult], **kwargs):
+def visualize(
+    result: Union[TreeLog, MCTSResult, BeamSearchResult, DFSResult], **kwargs
+):
     tree_log: TreeLog
 
     if isinstance(result, TreeLog):
@@ -64,6 +69,5 @@ def visualize(result: Union[TreeLog, MCTSResult, BeamSearchResult, DFSResult], *
         raise TypeError(f"Unsupported result type: {type(result)}")
 
     receipt = VisualizerClient().post_log(tree_log)
-
     if receipt is not None:
         present_visualizer(receipt)

@@ -4,8 +4,9 @@ from agentlab.agents import dynamic_prompting as dp
 from agentlab.experiments import args
 from agentlab.llm.llm_configs import CHAT_MODEL_ARGS_DICT
 
-from .reasoners_agent import ReasonersAgentArgs
-from .reasoners_agent_prompt import ReasonersPromptFlags
+from .agentlab_reasoners_agent import ReasonersAgentArgs, PlannerArgs, SearchAlgorithmArgs
+from .agentlab_reasoners_agent_prompt import ReasonersPromptFlags
+from .agent_model.variables.action_space import BrowserActionSpace
 
 FLAGS_CUSTOM = ReasonersPromptFlags(
     obs=dp.ObsFlags(
@@ -234,7 +235,7 @@ FLAGS_GPT_4o = ReasonersPromptFlags(
         long_description=False,
         individual_examples=False,
     ),
-    use_plan=False,
+    use_plan=True,
     use_criticise=False,
     use_thinking=True,
     use_memory=False,
@@ -256,6 +257,21 @@ AGENT_4o_MINI = ReasonersAgentArgs(
     chat_model_args=CHAT_MODEL_ARGS_DICT["openai/gpt-4o-mini-2024-07-18"],
     flags=FLAGS_GPT_4o,
 )
+
+REASONERS_AGENT_4o_MINI = ReasonersAgentArgs(
+    chat_model_args=CHAT_MODEL_ARGS_DICT["openai/gpt-4o-mini-2024-07-18"],
+    flags=FLAGS_GPT_4o,
+    planner_args=PlannerArgs(
+        llm_args=CHAT_MODEL_ARGS_DICT["openai/gpt-4o-mini-2024-07-18"],
+        search_algorithm_args=SearchAlgorithmArgs(algorithm="MCTS", n_iters=1, depth_limit=2),
+    ),
+    action_set_args=bgym.HighLevelActionSetArgs(
+        subsets=["chat", "bid", "nav"],
+        strict=False,
+        multiaction=False,
+    ),
+)
+
 
 # GPT-4o vision default config
 FLAGS_GPT_4o_VISION = FLAGS_GPT_4o.copy()

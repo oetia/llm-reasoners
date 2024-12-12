@@ -12,8 +12,7 @@ logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler())
 
 
-class BasePlanner(AgentModule):
-    ...
+class BasePlanner(AgentModule): ...
 
 
 class PolicyPlanner(AgentModule):
@@ -22,8 +21,7 @@ class PolicyPlanner(AgentModule):
         self.policy = policy
 
     def __call__(self, state, memory):
-        intent_response = self.policy(state=state, memory=memory)[
-            0]  # returns a list now
+        intent_response = self.policy(state=state, memory=memory)[0]  # returns a list now
         # intent_response = self.policy(state=state, memory=memory)
         return intent_response
 
@@ -36,8 +34,7 @@ class LLMReasonerPlanner(AgentModule):
         self.critic = critic
 
         self.reasoner_world_model = WorldModelWrapper(world_model, **kwargs)
-        self.reasoner_search_config = SearchConfigWrapper(
-            policy, critic, **kwargs)
+        self.reasoner_search_config = SearchConfigWrapper(policy, critic, **kwargs)
         # self.reasoner_search_algo = MCTS(
         #     output_trace_in_each_iter=True, disable_tqdm=False)
         # self.reasoner_search_algo = DFS(max_per_state=5, depth=1, prior=False)
@@ -52,11 +49,11 @@ class LLMReasonerPlanner(AgentModule):
 
     def __call__(self, state, memory):
         # We need to define the llm reasoner
-        example = {'state': state, 'memory': copy.deepcopy(memory)}
+        example = {"state": state, "memory": copy.deepcopy(memory)}
         self.reasoner_world_model.logger = self.logger
         self.reasoner_search_config.logger = self.logger
 
         result = self.reasoner(example)
-        intent = result.terminal_state['action_history'][0]
+        intent = result.terminal_state["action_history"][0]
         # adding in result for visualization
-        return {'intent': intent, 'planner_algorithm_output': result}
+        return {"intent": intent, "planner_algorithm_output": result}

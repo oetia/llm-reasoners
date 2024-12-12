@@ -5,17 +5,13 @@ import json
 
 from openai import OpenAI
 
-# from opendevin.core.logger import opendevin_logger as logger
-
 import logging
 
 logger = logging.getLogger("logger")
 logger.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
@@ -28,21 +24,20 @@ class WorldModelWrapper(ReasonersWorldModel):
 
     def init_state(self):
         return {
-            'memory': copy.deepcopy(self.example['memory']),
-            'state': self.example['state'],
-            'action_history': [],
+            "memory": copy.deepcopy(self.example["memory"]),
+            "state": self.example["state"],
+            "action_history": [],
         }
 
     def step(self, state, action):
         """World Model"""
 
-        llm_output = self.world_model(
-            state['state'], state['memory'], action['action'])
+        llm_output = self.world_model(state["state"], state["memory"], action["action"])
 
         next_state = {
-            'state': llm_output['next_state'],
-            'memory': copy.deepcopy(state['memory']),
-            'action_history': state['action_history'] + [action['action']],
+            "state": llm_output["next_state"],
+            "memory": copy.deepcopy(state["memory"]),
+            "action_history": state["action_history"] + [action["action"]],
         }
 
         if self.logger:
@@ -52,14 +47,13 @@ class WorldModelWrapper(ReasonersWorldModel):
             logger.info(f"Proposed Action: {action['action']}")
             logger.info(f"Next State: {next_state['state']}")
 
-        next_state['memory'].update(
-            state=state['state'], intent=action['action'])
-        next_state['memory'].step()
+        next_state["memory"].update(state=state["state"], intent=action["action"])
+        next_state["memory"].step()
 
-        return next_state, {'next_state': next_state}
+        return next_state, {"next_state": next_state}
 
     def is_terminal(self, state):
-        return False
+        return False  # FIXME: this is a hack
 
     def update_example(self, example, **kwargs):
         super().update_example(example, **kwargs)
@@ -96,35 +90,35 @@ class SearchConfigWrapper(ReasonersSearchConfig):
     def get_actions(self, state):
         # Sample 20 actions
         llm_output = self.policy(
-            state['state'],
-            state['memory'],
+            state["state"],
+            state["memory"],
             llm_kwargs={
-                'temperature': self.policy_temperature,
-                'top_p': self.policy_top_p,
-                'n': self.policy_n,
+                "temperature": self.policy_temperature,
+                "top_p": self.policy_top_p,
+                "n": self.policy_n,
             },
         )
 
         action2freqs = {}
         for ans_dict in llm_output:  # structured to just be ans_dicts
-            # for ans_dict in llm_output['answers']:
-            action = ans_dict['intent']
-            freq, _ = action2freqs.get(action, (0, ''))
-            action2freqs[action] = (freq + 1, ans_dict.get('think'))
+            logger.info(f"Policy Ans Dict: {ans_dict}")
+            action = ans_dict["intent"]
+            freq, _ = action2freqs.get(action, (0, ""))
+            action2freqs[action] = (freq + 1, ans_dict.get("think"))
 
         if self.logger:
-            self.logger.info(f'Action2Freqs: {action2freqs}')
+            self.logger.info(f"Action2Freqs: {action2freqs}")
         else:
-            logger.info(f'Action2Freqs: {action2freqs}')
+            logger.info(f"Action2Freqs: {action2freqs}")
         # logger.info(f"Action2Freqs: {action2freqs}")
 
         cluster2freqs = {}
         while len(cluster2freqs) == 0:
             cluster2freqs = self._cluster_actions(action2freqs)
             if self.logger:
-                self.logger.info(f'Cluster2Freqs: {cluster2freqs}')
+                self.logger.info(f"Cluster2Freqs: {cluster2freqs}")
             else:
-                logger.info(f'Cluster2Freqs: {cluster2freqs}')
+                logger.info(f"Cluster2Freqs: {cluster2freqs}")
 
         action_freq_thoughts = [
             (action, freq, think) for action, (freq, think) in cluster2freqs.items()
@@ -133,38 +127,34 @@ class SearchConfigWrapper(ReasonersSearchConfig):
         action_freq_thoughts = action_freq_thoughts[: self.policy_freq_top_k]
 
         action_outputs = [
-            {'action': action, 'freq': freq, 'think': think}
+            {"action": action, "freq": freq, "think": think}
             for action, freq, think in action_freq_thoughts
         ]
 
         if self.logger:
-            self.logger.info('Action Options:')
+            self.logger.info("Action Options:")
             for a in action_outputs:
-                self.logger.info(
-                    f"Action: {a['action']}, Freq: {a['freq']}, Think: {a['think']}"
-                )
+                self.logger.info(f"Action: {a['action']}, Freq: {a['freq']}, Think: {a['think']}")
         else:
-            logger.info('Action Options:')
+            logger.info("Action Options:")
             for a in action_outputs:
-                logger.info(
-                    f"Action: {a['action']}, Freq: {a['freq']}, Think: {a['think']}"
-                )
+                logger.info(f"Action: {a['action']}, Freq: {a['freq']}, Think: {a['think']}")
 
         return action_outputs
 
     def fast_reward(self, state, action):
-        return 0.0, {}
+        return 1.0, {}
 
     def reward(self, state, action, next_state, **kwargs):
         # ah critic is expected to evaluate many times
         # this is how reward is calculated. i see.
         llm_output = self.critic(
-            next_state['state'],
-            next_state['memory'],
+            next_state["state"],
+            next_state["memory"],
             llm_kwargs={
-                'temperature': self.critic_temperature,
-                'top_p': self.critic_top_p,
-                'n': self.critic_n,
+                "temperature": self.critic_temperature,
+                "top_p": self.critic_top_p,
+                "n": self.critic_n,
             },
         )
 
@@ -176,37 +166,36 @@ class SearchConfigWrapper(ReasonersSearchConfig):
         scores = []
         thoughts = []
         for ans_dict in llm_output:
-            # for ans_dict in llm_output['answers']:
-            # print(ans_dict)
-            if ans_dict['status'] == 'success':
+            logger.info(f"Critic Ans Dict: {ans_dict}")
+            if ans_dict["status"] == "success":
                 score = 1
-            elif ans_dict['on_the_right_track'] == 'yes':
+            elif ans_dict["on_the_right_track"] == "yes":
                 score = 0.5
             else:
                 score = 0
             scores.append(score)
-            thoughts.append(ans_dict.get('think'))
+            thoughts.append(ans_dict.get("think"))
         reward = sum(scores) / len(scores)
 
         # logger.info(f"Score Examples: {scores[:5]}")
         # logger.info(f"Thought Examples: {thoughts[:5]}")
         if self.logger:
-            self.logger.info(f'Thought Example: {thoughts[0]}')
-            self.logger.info(f'Reward: {reward}')
+            self.logger.info(f"Thought Example: {thoughts[0]}")
+            self.logger.info(f"Reward: {reward}")
         else:
-            logger.info(f'Thought Example: {thoughts[0]}')
-            logger.info(f'Reward: {reward}')
+            logger.info(f"Thought Example: {thoughts[0]}")
+            logger.info(f"Reward: {reward}")
 
-        return reward, {'scores': scores, 'thoughts': thoughts}
+        return reward, {"scores": scores, "thoughts": thoughts}
 
     def _cluster_actions(self, action2freqs):
-
+        # TODO: Using the LLM Class to do this
         # ****API KEY NEEDED HERE****
-        api_key = "[key]"
+        import os
+
+        api_key = os.getenv("OPENAI_API_KEY")
         client = OpenAI(api_key=api_key)
-        action_candidate_dict = {
-            i: action for i, action in enumerate(action2freqs.keys())
-        }
+        action_candidate_dict = {i: action for i, action in enumerate(action2freqs.keys())}
         action_candidate_json = json.dumps(action_candidate_dict, indent=2)
 
         input_prompt = self._get_cluster_input_template().format(
@@ -214,38 +203,36 @@ class SearchConfigWrapper(ReasonersSearchConfig):
         )
         llm_prompt = (
             self._get_cluster_instruction_prompt()
-            + '\n\n'
+            + "\n\n"
             + self._get_cluster_example_prompt()
-            + '\n\n'
+            + "\n\n"
             + input_prompt
         )
         # print(llm_prompt)
 
         # Run LLM for clustering
-        system_prompt = 'You are an expert at clustering text.'
+        system_prompt = "You are an expert at clustering text."
         messages = [
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': llm_prompt},
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": llm_prompt},
         ]
 
         completion = client.chat.completions.create(
-            model='gpt-4o', messages=messages, response_format={'type': 'json_object'}
+            model="gpt-4o-mini", messages=messages, response_format={"type": "json_object"}
         )
         response = completion.choices[0].message.content
         clusters_dict = json.loads(response)
 
         cluster2freqs = {}
         for cluster_id, cluster_info in clusters_dict.items():
-            action = cluster_info['intent']
-            cluster2freqs[action] = (0, '')
-            for candidate_id in cluster_info['candidates']:
+            action = cluster_info["intent"]
+            cluster2freqs[action] = (0, "")
+            for candidate_id in cluster_info["candidates"]:
                 candidate = action_candidate_dict[int(candidate_id)]
-                candidate_freq, candidate_think = action2freqs.get(
-                    candidate, (0, ''))
+                candidate_freq, candidate_think = action2freqs.get(candidate, (0, ""))
 
                 cluster_freq, _ = cluster2freqs[action]
-                cluster2freqs[action] = (
-                    cluster_freq + candidate_freq, candidate_think)
+                cluster2freqs[action] = (cluster_freq + candidate_freq, candidate_think)
                 # print(cluster2freqs)
         return cluster2freqs
 

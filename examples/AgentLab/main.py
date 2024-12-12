@@ -15,12 +15,14 @@ from agentlab.agents.generic_agent import (
     AGENT_4o,
     AGENT_4o_MINI,
 )
+from agentlab.agents.agentlab_reasoners_agent import REASONERS_AGENT_4o_MINI
 from agentlab.experiments.study import Study
 
 logging.getLogger().setLevel(logging.INFO)
 
 # choose your agent or provide a new agent
-agent_args = [AGENT_4o_MINI]
+agent_args = [REASONERS_AGENT_4o_MINI]
+# agent_args = [AGENT_4o_MINI]
 # agent_args = [AGENT_4o]
 
 
@@ -42,24 +44,71 @@ reproducibility_mode = False
 relaunch = False
 
 ## Number of parallel jobs
-n_jobs = 4  # Make sure to use 1 job when debugging in VSCode
+n_jobs = 1  # Make sure to use 1 job when debugging in VSCode
 # n_jobs = -1  # to use all available cores
 
-tiny_test_task_names = [
-    "webarena.410",
-    "webarena.27",
-    "webarena.28",
-    "webarena.66",
+tiny_test_task_reddit_names = [
+    # "webarena.410",
+    # "webarena.27",
+    # "webarena.28",
+    # "webarena.66",
     "webarena.399",
-    "webarena.596",
-    "webarena.619",
-    "webarena.642",
-    "webarena.718",
-    "webarena.731",
+    # "webarena.596",
+    # "webarena.619",
+    # "webarena.642",
+    # "webarena.718",
+    # "webarena.731",
+    # "webarena.29",
+    # "webarena.30",
+    # "webarena.31",
+    # "webarena.67",
+    # "webarena.68",
+    # "webarena.69",
+    # "webarena.400",
+    # "webarena.401",
+    # "webarena.402",
+    # "webarena.403",
+    # "webarena.405",
+    # "webarena.406",
+    # "webarena.597",
+    # "webarena.598",
+    # "webarena.599",
 ]
+tiny_test_task_names = [
+    # reddit
+    # "webarena.27",
+    # "webarena.66",
+    # "webarena.399",
+    # "webarena.580",
+    # "webarena.596",
+    # "webarena.610",
+    # "webarena.615",
+    # "webarena.620",
+    # "webarena.627",
+    # "webarena.640",
+    # "webarena.650",
+    # "webarena.718",
+    # "webarena.731",
+    # shopping
+    # "webarena.21",
+    # "webarena.50",
+    # "webarena.118",
+    "webarena.147",
+    # "webarena.158",
+    # "webarena.165",
+    # "webarena.189",
+    # "webarena.225",
+    # "webarena.239",
+    # "webarena.277",
+    # "webarena.298",
+    # "webarena.319",
+]
+
 ignore_dependencies = True
 
 if __name__ == "__main__":  # necessary for dask backend
+    # import ray
+    # ray.init()
 
     if reproducibility_mode:
         [a.set_reproducibility_mode() for a in agent_args]
