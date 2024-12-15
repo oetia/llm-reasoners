@@ -80,7 +80,7 @@ class MCTSAggregation(Generic[State, Action, Example], ABC):
         self.retrieve_answer = retrieve_answer
         self.weight_policy = weight_policy
 
-    def __call__(self, tree_state: MCTSNode[State, Action,Example]) -> Optional[Hashable]:
+    def __call__(self, tree_state: MCTSNode[State, Action, Example]) -> Optional[Hashable]:
         answer_dict = defaultdict(lambda: 0)
 
         def visit(cur: MCTSNode[State, Action, Example]):
@@ -116,6 +116,7 @@ class MCTSAggregation(Generic[State, Action, Example], ABC):
         if len(answer_dict) == 0:
             return None
         return max(answer_dict, key=lambda answer: answer_dict[answer])
+
 
 class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
     def __init__(self,
@@ -216,17 +217,18 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         if self.uct_with_fast_reward or all(x.state is not None for x in node.children):
             return max(node.children, key=self._uct)
         else:
-            unvisited_children = filter(lambda x: x.state is None, node.children)
+            unvisited_children = filter(
+                lambda x: x.state is None, node.children)
             return max(unvisited_children, key=lambda x: x.fast_reward)
 
     def _expand(self, node: MCTSNode):
         if node.state is None:
-            node.state, aux = self.world_model.step(node.parent.state, node.action)
-            # reward is calculated after the state is updated, so that the
-            # information can be cached and passed from the world model
-            # to the reward function with **aux without repetitive computation
+            node.state, aux = self.world_model.step(
+                node.parent.state, node.action)
+
             node.reward, node.reward_details = self.search_config. \
-                reward(node.parent.state, node.action, **node.fast_reward_details, **aux)
+                reward(node.parent.state, node.action, **
+                       node.fast_reward_details, **aux)
             node.is_terminal = self.world_model.is_terminal(node.state)
 
         if node.is_terminal:
@@ -235,7 +237,8 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         children = []
         actions = self.search_config.get_actions(node.state)
         for action in actions:
-            fast_reward, fast_reward_details = self.search_config.fast_reward(node.state, action)
+            fast_reward, fast_reward_details = self.search_config.fast_reward(
+                node.state, action)
             child = MCTSNode(state=None, action=action, parent=node,
                              fast_reward=fast_reward, fast_reward_details=fast_reward_details, calc_q=self.calc_q)
             children.append(child)
@@ -276,7 +279,8 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
     def search(self):
         self._output_cum_reward = -math.inf
         self._output_iter = None
-        self.root = MCTSNode(state=self.world_model.init_state(), action=None, parent=None, calc_q=self.calc_q)
+        self.root = MCTSNode(state=self.world_model.init_state(
+        ), action=None, parent=None, calc_q=self.calc_q)
         if self.output_trace_in_each_iter:
             self.trace_in_each_iter = []
 
@@ -292,13 +296,16 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
                 self._output_iter.append(cur)
                 if cur.is_terminal:
                     break
-                visited_children = [x for x in cur.children if x.state is not None]
+                visited_children = [
+                    x for x in cur.children if x.state is not None]
                 if len(visited_children) == 0:
                     break
                 cur = max(visited_children, key=lambda x: x.reward)
-            self._output_cum_reward = self.cum_reward([node.reward for node in self._output_iter[1::-1]])
+            self._output_cum_reward = self.cum_reward(
+                [node.reward for node in self._output_iter[1::-1]])
         if self.output_strategy == 'max_reward':
-            self._output_cum_reward, self._output_iter = self._dfs_max_reward([self.root])
+            self._output_cum_reward, self._output_iter = self._dfs_max_reward([
+                                                                              self.root])
             if self._output_cum_reward == -math.inf:
                 self._output_iter = None
 
@@ -317,10 +324,12 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
             terminal_state = trace = None
         else:
             terminal_state = self._output_iter[-1].state
-            trace = [node.state for node in self._output_iter], [node.action for node in self._output_iter[1:]]
+            trace = [node.state for node in self._output_iter], [
+                node.action for node in self._output_iter[1:]]
         if self.output_trace_in_each_iter:
             trace_in_each_iter = self.trace_in_each_iter
-            tree_state_after_each_iter = [trace[0] for trace in trace_in_each_iter]
+            tree_state_after_each_iter = [trace[0]
+                                          for trace in trace_in_each_iter]
         else:
             trace_in_each_iter = tree_state_after_each_iter = None
         result = MCTSResult(terminal_state=terminal_state,

@@ -1,3 +1,5 @@
+import openai
+
 import logging
 import os
 import re
@@ -13,9 +15,9 @@ from browsergym.core.chat import Chat
 from browsergym.core.env import BrowserEnv
 from browsergym.experiments import EnvArgs
 from browsergym.utils.obs import flatten_axtree_to_str, flatten_dom_to_str, prune_html
-from browsergym.core.action.parsers import highlevel_action_parser
 
-from reasoners import SearchConfig, WorldModel, LanguageModel
+
+# CLASSES FOR RAP IN LLM REASONERS
 
 
 # GENERATING ACTION PROPOSALS
@@ -23,23 +25,33 @@ from reasoners import SearchConfig, WorldModel, LanguageModel
 def get_action_proposals(
     obs: dict,
     action_set: HighLevelActionSet, action_history: list[str],
-    llm: LanguageModel,
-    n=10, temperature=1.0,
+    openai_client: openai.OpenAI,
+    n=3, temperature=0.9,
     use_axtree: bool = True, use_html: bool = False, use_screenshot: bool = False,
     logger: logging.Logger = None,
 ) -> tuple[str, dict]:
 
-    system_msgs, user_msgs, full_prompt_text = build_propose_prompt(
+    system_msgs, user_msgs = build_propose_prompt(
         obs, action_set, action_history, use_axtree, use_html, use_screenshot)
 
-    response = llm.generate(
-        full_prompt_text, num_return_sequences=n, temperature=temperature)
-    action_proposals = response.text
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_msgs},
+            {"role": "user", "content": user_msgs},
+        ],
+        n=n, temperature=temperature
+    )
+
+    actions = []
+    for choice in response.choices:
+        action = choice.message.content
+        actions.append(action)
 
     if logger:
-        log_action_proposals(logger, action_proposals)
+        log_action_proposals(logger, actions)
 
-    return action_proposals, {}
+    return actions, {}
 
 
 def cluster_actions_proposals(actions: list[str], action_set: HighLevelActionSet, logger: logging.Logger = None) -> list[str]:
@@ -60,13 +72,13 @@ def cluster_actions_proposals(actions: list[str], action_set: HighLevelActionSet
 def get_clustered_action_proposals(
     obs: dict,
     action_set: HighLevelActionSet, action_history: list[str],
-    llm: LanguageModel,
-    n=10, temperature=1.0,
+    openai_client: openai.OpenAI,
+    n=3, temperature=0.9,
     use_axtree: bool = True, use_html: bool = False, use_screenshot: bool = False,
     logger: logging.Logger = None,
 ) -> list[str]:
-    actions, info = get_action_proposals(
-        obs, action_set, action_history, llm, n, temperature, use_axtree, use_html, use_screenshot, logger=logger)
+    actions, info = get_action_proposals(obs, action_set, action_history, openai_client,
+                                         n, temperature, use_axtree, use_html, use_screenshot, logger=logger)
     clustered_actions = cluster_actions_proposals(
         actions, action_set, logger=logger)
 
@@ -78,17 +90,24 @@ def get_clustered_action_proposals(
 def get_evaluation_of_action_proposal(
     obs: dict,
     action_proposal: str, action_set: HighLevelActionSet, action_history: list[str],
-    llm: LanguageModel,
+    openai_client: openai.OpenAI,
     n=1, temperature=0.25,
     use_axtree: bool = True, use_html: bool = False, use_screenshot: bool = False,
 ) -> tuple[str, dict]:
 
-    system_msgs, user_msgs, full_prompt_txt = build_evaluation_prompt(
+    system_msgs, user_msgs = build_evaluation_prompt(
         obs, action_proposal, action_set, action_history, use_axtree, use_html, use_screenshot)
 
-    response = llm.generate(
-        full_prompt_txt, num_return_sequences=n, temperature=temperature)
-    evaluation = response.text[0]
+    response = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": system_msgs},
+            {"role": "user", "content": user_msgs},
+        ],
+        n=n, temperature=temperature
+    )
+
+    evaluation = response.choices[0].message.content
 
     return evaluation, {}
 
@@ -102,13 +121,13 @@ def parse_evaluation_json(evaluation: str) -> float:
 def get_parsed_evaluation_of_action_proposal(
     obs: dict,
     action_proposal: str, action_set: HighLevelActionSet, action_history: list[str],
-    llm: LanguageModel,
+    openai_client: openai.OpenAI,
     n=1, temperature=0.25,
     use_axtree: bool = True, use_html: bool = False, use_screenshot: bool = False,
     logger: logging.Logger = None,
 ) -> tuple[float, dict]:
     evaluation, info = get_evaluation_of_action_proposal(
-        obs, action_proposal, action_set, action_history, llm, n, temperature, use_axtree, use_html, use_screenshot)
+        obs, action_proposal, action_set, action_history, openai_client, n, temperature, use_axtree, use_html, use_screenshot)
     parsed_evaluation = parse_evaluation_json(evaluation)
     log_evaluation(logger, action_proposal, evaluation, parsed_evaluation)
 
@@ -118,13 +137,13 @@ def get_parsed_evaluation_of_action_proposal(
 def get_parsed_evaluations_of_action_proposals(
     obs: dict,
     action_proposals: list[str], action_set: HighLevelActionSet, action_history: list[str],
-    llm: LanguageModel,
+    openai_client: openai.OpenAI,
     logger: logging.Logger = None,
 ) -> list[tuple[str, float]]:
     actions_with_eval = []
     for action_proposal in action_proposals:
         evaluation, info = get_parsed_evaluation_of_action_proposal(
-            obs, action_proposal, action_set, action_history, llm, logger=logger)
+            obs, action_proposal, action_set, action_history, openai_client, logger=logger)
         actions_with_eval.append((action_proposal, evaluation))
 
     return actions_with_eval
@@ -156,26 +175,29 @@ def get_browser_action_set():
         subsets=["chat", "tab", "nav", "bid", "infeas"],
         strict=False,  # less strict on the parsing of the actions
         multiaction=True,
-        # add visual effects # demo_mode doesn't work with webarena. causes an infinite hang.
-        demo_mode="off",
+        demo_mode="off",  # add visual effects
     )
 
 
 # MANAGING BROWSERENV
 
-def get_env(task_name, action_set: HighLevelActionSet, seed):
+def get_env(task_name, action_set: HighLevelActionSet, seed, exp_dir="./results"):
     env_args = EnvArgs(
         task_name=task_name,
         task_seed=seed,
         max_steps=100,
-        headless=False,
+        headless=True,
         record_video=True,
         # viewport={"width": 500, "height": 500},  # can be played with if needed
     )
 
+    # check if exp dir exists
+    if not os.path.exists(exp_dir):
+        os.makedirs(exp_dir)
+
     env = env_args.make_env(
         action_mapping=action_set.to_python_code,
-        exp_dir="./results",
+        exp_dir=exp_dir,
     )
     return env
 
@@ -188,6 +210,7 @@ def reset_env(env: BrowserEnv, seed: int, logger: logging.Logger = None):
 
 
 def step_env(env: BrowserEnv, action: str, logger: logging.Logger = None):
+    # print("sc 1")
     obs, reward, terminated, truncated, step_info = env.step(action)
     obs = obs_preprocessor(obs)
     log_chosen_action(logger, action)
@@ -410,7 +433,7 @@ def build_propose_prompt(
     action_set: HighLevelActionSet, action_history: list[str],
     use_axtree: bool = True, use_html: bool = False, use_screenshot: bool = False,
     # logger: logging.Logger = None
-) -> tuple[list[dict], list[dict], str]:
+) -> tuple[list[dict], list[dict]]:
     system_msgs = []
     user_msgs = []
 
@@ -464,7 +487,7 @@ You will now think step by step and produce your next best action. Reflect on yo
                 )
     full_prompt_txt = "\n".join(prompt_text_strings)
 
-    return system_msgs, user_msgs, full_prompt_txt
+    return system_msgs, user_msgs
 
 
 def build_evaluation_prompt(
@@ -472,7 +495,7 @@ def build_evaluation_prompt(
     action: str, action_set: HighLevelActionSet, action_history: list[str],
     use_axtree: bool = True, use_html: bool = False, use_screenshot: bool = False,
     # logger: logging.Logger = None
-) -> tuple[list[dict], list[dict], str]:
+) -> tuple[list[dict], list[dict]]:
     system_msgs = []
     user_msgs = []
 
@@ -545,7 +568,7 @@ As mentioned before, considering all the information above in the context of the
 
     full_prompt_txt = "\n".join(prompt_text_strings)
 
-    return system_msgs, user_msgs, full_prompt_txt
+    return system_msgs, user_msgs
 
 
 # OTHER MSIC. UTILS
@@ -641,20 +664,3 @@ def obs_preprocessor(obs: dict) -> dict:
         "axtree_txt": flatten_axtree_to_str(obs["axtree_object"]),
         "pruned_html": prune_html(flatten_dom_to_str(obs["dom_object"])),
     }
-
-
-valid_action_types = ["noop", "scroll", "keyboard_press", "click", "fill", "hover", "tab_focus", "new_tab",
-                      "go_back", "go_forward", "goto", "tab_close", "select_option", "send_msg_to_user", "report_infeasible"]
-
-
-def check_validity_of_action_proposal(action_proposal: str):
-    function_calls = highlevel_action_parser.search_string(
-        action_proposal)
-    function_calls = sum(function_calls.as_list(), [])
-    python_code = ""
-    for function_name, function_args in function_calls:
-
-        if function_name not in valid_action_types:
-            return False
-
-    return True

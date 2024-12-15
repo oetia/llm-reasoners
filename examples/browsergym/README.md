@@ -13,6 +13,7 @@ make install
 ```
 
 ## Installing datasets
+
 ### 1. Miniwob++
 
 Can choose an arbitrary dataset to install, but miniwob is the easiest to setup.
@@ -50,6 +51,7 @@ export OPENAI_API_KEY=...
 ```
 
 Then serve the webarena server following the [webarena instructions](https://github.com/web-arena-x/webarena/blob/main/environment_docker/README.md). e.g., for the shopping instance (note the .tar file needs downloading), run
+
 ```bash
 docker load --input shopping_final_0712.tar
 docker run --name shopping -p 7770:80 -d shopping_final_0712
@@ -61,17 +63,21 @@ docker exec shopping /var/www/magento2/bin/magento cache:flush
 ```
 
 Test the shopping instance by running
+
 ```bash
 curl $WA_SHOPPING
 ```
 
 After that, you should be able to run
+
 ```bash
 python wa_test.py
 ```
+
 to run a webarena task.
 
 ### 3. VisualWebArena -- locally hosted
+
 ```bash
 # visualwebarena environment variables (change ports as needed)
 export VWA_CLASSIFIEDS="$BASE_URL:8083"
@@ -86,20 +92,24 @@ export VWA_FULL_RESET="$BASE_URL:7565"
 ```
 
 Then serve the visualwebarena server following the [visualwebarena instructions](https://github.com/web-arena-x/visualwebarena/blob/main/environment_docker/README.md). e.g., for the reddit instance (note the .tar file needs downloading), run
+
 ```bash
 docker load --input postmill-populated-exposed-withimg.tar
 docker run --name forum -p 8080:80 -d postmill-populated-exposed-withimg
 ```
 
 Test the reddit instance by running
+
 ```bash
 curl $VWA_REDDIT
 ```
 
 After that, you should be able to run
+
 ```bash
 python vwa_test.py
 ```
+
 to run a visualwebarena task.
 
 ## Visualize search tree
@@ -109,19 +119,25 @@ python visualize.py --tree_log_file=<path_to_tree_log_pickle_file>
 ```
 
 ## Troubleshooting
+
 If you meet the error:
+
 ```
 ModuleNotFoundError: No module named 'huggingface_hub.errors'
 ```
+
 That's due to a conflict of huggingface-hub version. You can fix it by running:
+
 ```bash
 pip install huggingface_hub==0.24.7
 ```
 
 If you meet the error:
+
 ```
 playwright._impl._errors.TargetClosedError: BrowserType.launch: Target page, context or browser has been closed Browser logs: ╔════════════════════════════════════════════════════════════════════════════════════════════════╗ ║ Looks like you launched a headed browser without having a XServer running. ║ ║ Set either 'headless: true' or use 'xvfb-run <your-playwright-app>' before running Playwright. ║ ║ ║ ║ <3 Playwright Team
 ```
+
 Try set `headless=True` in the `get_env` function in `support.py`. This usually happens if you run the code in a remote server without a display.
 
 ## NOTES
