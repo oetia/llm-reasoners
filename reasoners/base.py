@@ -130,9 +130,6 @@ class Dynamics(ABC, Generic[State, Action]):
     @abstractmethod
     def is_terminal(self, state: State) -> bool: ...
 
-<<<<<<< HEAD
-    def update_example(self, example: Example, prompt=None) -> None:
-=======
 class WorldModel(Dynamics, Generic[State, Action, Example]):
     def __init__(self) -> None:
         self.example = None
@@ -218,7 +215,6 @@ class Reasoner(ABC, Generic[State, Action, Example]):
             self.dynamics.update_example(example, prompt=prompt)
             self.search_config.update_example(example, prompt=prompt)
         return self.search_algo(self.dynamics, self.search_config, **kwargs)
-
 
 class Evaluator:
     @abstractmethod

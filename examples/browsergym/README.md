@@ -159,7 +159,7 @@ One key feature of LLM-Reasoners planner is we provide an online visualizer to s
 ```bash
 python visualize.py \
     --task_name <task_name> \
-    --exp_dir <exp_dir>
+    --exp_dir <exp_dir> \
 ```
 
 If running successfully, you should see a visualizer link like this (hosted by LLM-Reasoners), e.g.,
