@@ -7,8 +7,8 @@ import requests
 from reasoners.algorithm import MCTSResult, BeamSearchResult, DFSResult
 from reasoners.visualization import TreeLog, TreeLogEncoder
 
-_API_DEFAULT_BASE_URL = "https://2wz3t0av30.execute-api.us-west-1.amazonaws.com/staging"
-_VISUALIZER_DEFAULT_BASE_URL = "https://www.llm-reasoners.net"
+_API_DEFAULT_BASE_URL = "https://4lgdwukvng.execute-api.us-east-1.amazonaws.com/main"
+_VISUALIZER_DEFAULT_BASE_URL = "https://main.d1puk3wdon4rk8.amplifyapp.com"
 
 
 class VisualizerClient:

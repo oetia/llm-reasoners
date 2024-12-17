@@ -1,4 +1,6 @@
-BrowserGym
-miniwob-plusplus
-logs
-results
+**/chat_video/
+**/task_video/
+
+__pycache__/
+**/results/
+**/logs/
