@@ -1,4 +1,5 @@
 import argparse
+import base64
 import pickle
 import numpy as np
 from reasoners.visualization import visualize
@@ -6,6 +7,35 @@ from reasoners.visualization.tree_snapshot import NodeData, EdgeData
 from reasoners.algorithm.mcts import MCTSNode
 from browsergym.core.action.parsers import highlevel_action_parser
 from examples.browsergym.gym_env import StateGym
+import io
+from PIL import Image, UnidentifiedImageError
+
+
+def compress_base64_image(base64_str, output_format="JPEG", quality=100):
+    try:
+        # Determine the prefix
+        prefix = ""
+        if base64_str.startswith("data:image"):
+            prefix, base64_str = base64_str.split(",", 1)
+        # Decode the base64 string to bytes
+        image_data = base64.b64decode(base64_str)
+        # Open the image using PIL
+        image = Image.open(io.BytesIO(image_data))
+        # Create a BytesIO object to hold the compressed image
+        compressed_image_io = io.BytesIO()
+        # Save the image to the BytesIO object with the desired compression
+        image.save(compressed_image_io, format=output_format, quality=quality)
+        # Get the compressed image bytes
+        compressed_image_bytes = compressed_image_io.getvalue()
+        # Encode the compressed image bytes back to a base64 string
+        compressed_base64_str = base64.b64encode(compressed_image_bytes).decode("utf-8")
+        # Add the prefix back if it was present
+        if prefix:
+            compressed_base64_str = f"{prefix},{compressed_base64_str}"
+        return compressed_base64_str
+    except (base64.binascii.Error, UnidentifiedImageError) as e:
+        print(f"Error processing image: {e}")
+        return None
 
 
 def process_obs_for_viz(obs: dict[str, any], verbose: bool = False):
@@ -37,7 +67,7 @@ def process_obs_for_viz(obs: dict[str, any], verbose: bool = False):
         )
 
     # FIXME: hardcode to stringfy screenshot as it's too large for server upload; remove this line if the server supports large file upload
-    processed_obs["screenshot"] = str(processed_obs["screenshot"])[:50]
+    processed_obs["screenshot"] = compress_base64_image(processed_obs["screenshot"])
 
     if not verbose:
         return {
@@ -102,7 +132,12 @@ def browsergym_edge_data_factory(n: MCTSNode, verbose: bool = False) -> EdgeData
 
 
 def load_and_visualize(args):
-    result = pickle.load(open(f"{args.input_dir}/{args.task_name}/result.pkl", "rb"))
+    result = pickle.load(
+        open(
+            f"/Users/aaryan/Documents/Code/UCSD/fa24/DSC180A/llm-reasoners/examples/browsergym/{args.input_dir}/{args.task_name}/result.pkl",
+            "rb",
+        )
+    )
 
     visualize(
         result,
