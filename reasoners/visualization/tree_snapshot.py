@@ -14,6 +14,7 @@ class TreeSnapshot:
         id: NodeId
         data: NodeData
         selected_edge: Optional[EdgeId] = None
+        convert_images: Optional[bool] = True
 
     @dataclass
     class Edge:
@@ -21,10 +22,13 @@ class TreeSnapshot:
         source: NodeId
         target: NodeId
         data: EdgeData
+        convert_images: Optional[bool] = True
 
     def __init__(self, nodes: Collection[Node], edges: Collection[Edge]) -> None:
-        self.nodes: dict[NodeId, TreeSnapshot.Node] = {node.id: node for node in nodes}
-        self.edges: dict[EdgeId, TreeSnapshot.Edge] = {edge.id: edge for edge in edges}
+        self.nodes: dict[NodeId, TreeSnapshot.Node] = {
+            node.id: node for node in nodes}
+        self.edges: dict[EdgeId, TreeSnapshot.Edge] = {
+            edge.id: edge for edge in edges}
         self._parent = {}
         self._children: dict[NodeId, set[NodeId]] = defaultdict(set)
 

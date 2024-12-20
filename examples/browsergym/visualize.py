@@ -19,8 +19,10 @@ from PIL import Image, UnidentifiedImageError
 import io
 import base64
 
+total_megabytes = 0
 
-def compress_base64_image(base64_str, output_format="JPEG", quality=50):
+
+def compress_base64_image(base64_str, output_format="JPEG", quality=50, id=id):
     try:
         # Determine the prefix
         prefix = ""
@@ -33,17 +35,24 @@ def compress_base64_image(base64_str, output_format="JPEG", quality=50):
         # Open the image using PIL
         image = Image.open(io.BytesIO(image_data))
 
+        # resize the image to halve width and height
+        image = image.resize(
+            (image.width // 3, image.height // 3))
+
         # Create a BytesIO object to hold the compressed image
         compressed_image_io = io.BytesIO()
 
         # Save the image to the BytesIO object with the desired compression
         image.save(compressed_image_io, format=output_format, quality=quality)
+        # image.save(f"screenshots/{id}.jpg",
+        #            format=output_format, quality=100)
 
         # Get the compressed image bytes
         compressed_image_bytes = compressed_image_io.getvalue()
 
         # Encode the compressed image bytes back to a base64 string
-        compressed_base64_str = base64.b64encode(compressed_image_bytes).decode("utf-8")
+        compressed_base64_str = base64.b64encode(
+            compressed_image_bytes).decode("utf-8")
 
         # Add the prefix back if it was present
         if prefix:
@@ -56,7 +65,10 @@ def compress_base64_image(base64_str, output_format="JPEG", quality=50):
         return None
 
 
-def process_obs_for_viz(obs: dict[str, any], verbose: bool = False):
+def process_obs_for_viz(obs: dict[str, any], verbose: bool = True, id: int = 0):
+
+    global total_megabytes
+
     """Process the observation for visualization"""
     processed_obs = {}
 
@@ -68,11 +80,13 @@ def process_obs_for_viz(obs: dict[str, any], verbose: bool = False):
 
     # Truncate the long text fields to 50 characters
     processed_obs.update(
-        {k: str(obs[k])[:50] for k in ["axtree_txt", "pruned_html"] if k in obs}
+        {k: str(obs[k])[:50]
+         for k in ["axtree_txt", "pruned_html"] if k in obs}
     )
     # Convert int64 active_page_index to int to be serialized
     if "active_page_index" in obs:
-        processed_obs["active_page_index"] = [int(x) for x in obs["active_page_index"]]
+        processed_obs["active_page_index"] = [
+            int(x) for x in obs["active_page_index"]]
     # Extract clean action history from the whole action history string
     if "action_history" in obs:
         processed_obs["clean_action_history"] = list(
@@ -85,14 +99,31 @@ def process_obs_for_viz(obs: dict[str, any], verbose: bool = False):
         )
 
     # FIXME: the screenshot is too large to be uploaded to the visualizer server; uncomment this when the issue is fixed
-    # processed_obs["screenshot"] = compress_base64_image(processed_obs["screenshot"])
-    processed_obs["screenshot"] = str(processed_obs["screenshot"])[:50]
+
+    if processed_obs.get("screenshot", False):
+        processed_obs["screenshot"] = compress_base64_image(
+            processed_obs["screenshot"], quality=1, id=id)
+        # get estimate of size of the screenshot
+        screenshot_bytes = len(processed_obs["screenshot"]) * 3 / 4
+        screenshot_megabytes = screenshot_bytes / 1024 / 1024
+        total_megabytes += screenshot_megabytes
+        print(f"total megabytes: {total_megabytes}")
+
+    # processed_obs["screenshot"].save("screenshot.jpg")
+
+    # processed_obs["screenshot"] = str(processed_obs["screenshot"])[:50]
 
     if not verbose:
         return {
-            "screenshot": processed_obs["screenshot"],
-            "last_action": processed_obs["clean_last_action"],
+            "screenshot": processed_obs.get("screenshot", ""),
+            "last_action": processed_obs.get("clean_last_action", ""),
         }
+
+    # print("sanity check")
+    # del processed_obs["pruned_html"]
+
+    # with open("obs.txt", "w") as f:
+    #     f.write(str(processed_obs))
 
     return processed_obs
 
@@ -109,7 +140,12 @@ def browsergym_node_data_factory(x: MCTSNode, verbose: bool = False):
     """Generate the node data for the tree visualization"""
     if not x.state:
         return {}
-    current_obs = process_obs_for_viz(x.state.current_obs, verbose)
+    # print(x.id)
+    # with open("test.txt", "w") as f:
+    #     f.write(str(dir(x)))
+    # print(x.state.action_history)
+
+    current_obs = process_obs_for_viz(x.state.last_obs, verbose, x.id)
 
     if not verbose:
         return {
@@ -159,12 +195,15 @@ def browsergym_edge_data_factory(n: Union[MCTSNode, BeamSearchNode, DFSNode], ve
 
 
 def load_and_visualize(args):
-    result = pickle.load(open(f"{args.exp_dir}/{args.task_name}/result.pkl", "rb"))
+    result = pickle.load(
+        open(f"{args.exp_dir}/{args.task_name}/result.pkl", "rb"))
 
     visualize(
         result,
-        node_data_factory=lambda x: browsergym_node_data_factory(x, args.verbose),
-        edge_data_factory=lambda x: browsergym_edge_data_factory(x, args.verbose),
+        node_data_factory=lambda x: browsergym_node_data_factory(
+            x, args.verbose),
+        edge_data_factory=lambda x: browsergym_edge_data_factory(
+            x, args.verbose),
     )
 
 

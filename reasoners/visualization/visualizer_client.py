@@ -32,6 +32,10 @@ class VisualizerClient:
 
         url = f"{self.base_url}/logs"
         headers = {"Content-Type": "application/json"}
+
+        with open("request.json", "w") as f:
+            f.write(data)
+
         response = requests.post(url, headers=headers, data=data)
 
         if response.status_code != 200:
@@ -69,6 +73,8 @@ def visualize(
         raise TypeError(f"Unsupported result type: {type(result)}")
 
     receipt = VisualizerClient().post_log(tree_log)
+
+    # with open
 
     if receipt is not None:
         present_visualizer(receipt)

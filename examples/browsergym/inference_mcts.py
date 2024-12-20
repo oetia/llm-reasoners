@@ -72,7 +72,7 @@ def run_task(args):
     world_model = EnvironmentGym(env=env, obs_preprocessor=obs_preprocessor)
     search_config = SearchConfigBrowsergym(
         action_set=browser_action_set,
-        n_proposals=10,
+        n_proposals=20,
         llm=llm,
         use_axtree=True,
         use_html=False,
@@ -88,6 +88,13 @@ def run_task(args):
     )
 
     reasoner = Reasoner(world_model, search_config, algorithm)
+
+    world_model_stats = world_model.get_stats()
+    search_config_stats = search_config.get_stats()
+    combined_stats = {**world_model_stats, **search_config_stats}
+    print(combined_stats)
+    with open(f"{exp_dir}/stats.pkl", "wb") as f:
+        pickle.dump(combined_stats, f)
 
     plan_result = reasoner()
 

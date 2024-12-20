@@ -13,11 +13,7 @@ from collections import defaultdict
 import numpy as np
 from tqdm import trange
 
-import time
-
 from .. import SearchAlgorithm, WorldModel, SearchConfig, State, Action, Example, Trace
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 class MCTSNode(Generic[State, Action, Example]):
@@ -185,6 +181,7 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         self.aggregator = aggregator
         self.node_visualizer = node_visualizer
         self.aggregator = aggregator
+        self.current_iter = 0
 
     def iterate(self, node: MCTSNode) -> list[MCTSNode]:
         path = self._select(node)
@@ -206,6 +203,7 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
     def _is_terminal_with_depth_limit(self, node: MCTSNode):
         return node.is_terminal or node.depth >= self.depth_limit
 
+    # gets a path to some leaf node based on uct score
     def _select(self, node: MCTSNode) -> list[MCTSNode]:
         path = []
         while True:
@@ -229,9 +227,6 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         if node.state is None:
             node.state, aux = self.world_model.step(
                 node.parent.state, node.action)
-            # reward is calculated after the state is updated, so that the
-            # information can be cached and passed from the world model
-            # to the reward function with **aux without repetitive computation
             node.reward, node.reward_details = self.search_config. \
                 reward(node.parent.state, node.action, **
                        node.fast_reward_details, **aux)
@@ -242,36 +237,12 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
 
         children = []
         actions = self.search_config.get_actions(node.state)
-
-        def get_fast_reward(action):
+        for action in actions:
             fast_reward, fast_reward_details = self.search_config.fast_reward(
                 node.state, action)
-            return action, fast_reward, fast_reward_details
-
-        start = time.time()
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(get_fast_reward, action)
-                       for action in actions]
-
-            for future in as_completed(futures):
-                action, fast_reward, fast_reward_details = future.result()
-                child = MCTSNode(
-                    state=None,
-                    action=action,
-                    parent=node,
-                    fast_reward=fast_reward,
-                    fast_reward_details=fast_reward_details,
-                    calc_q=self.calc_q
-                )
-                children.append(child)
-        end = time.time()
-        print(f"Total Action proposal time: {end - start}")
-
-        # for action in actions:
-        #     fast_rewArd, fast_reward_details = self.search_config.fast_reward(node.state, action)
-        #     child = MCTSNode(state=None, action=action, parent=node,
-        #                      fast_reward=fast_reward, fast_reward_details=fast_reward_details, calc_q=self.calc_q)
-        # children.append(child)
+            child = MCTSNode(state=None, action=action, parent=node,
+                             fast_reward=fast_reward, fast_reward_details=fast_reward_details, calc_q=self.calc_q)
+            children.append(child)
 
         node.children = children
 
@@ -309,12 +280,14 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
     def search(self):
         self._output_cum_reward = -math.inf
         self._output_iter = None
-        self.root = MCTSNode(state=self.world_model.init_state(
-        ), action=None, parent=None, calc_q=self.calc_q)
+
+        if self.root is None:
+            self.root = MCTSNode(state=self.world_model.init_state(),
+                                 action=None, parent=None, calc_q=self.calc_q)
         if self.output_trace_in_each_iter:
             self.trace_in_each_iter = []
 
-        for _ in trange(self.n_iters, disable=self.disable_tqdm, desc='MCTS iteration', leave=False):
+        for _ in trange(self.current_iter, self.n_iters, disable=self.disable_tqdm, desc='MCTS iteration', leave=False):
             path = self.iterate(self.root)
             if self.output_trace_in_each_iter:
                 self.trace_in_each_iter.append(deepcopy(path))

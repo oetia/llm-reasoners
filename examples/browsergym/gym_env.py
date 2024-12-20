@@ -1,7 +1,7 @@
 import gymnasium as gym
 from typing import NamedTuple, Optional, Callable, Any
 from reasoners import Environment
-
+import time
 
 ActionGym = Any
 
@@ -38,6 +38,9 @@ class EnvironmentGym(Environment):
         self.max_steps = max_steps
         self.env_current_obs: dict = None
 
+        self.env_reset_times = []
+        self.env_step_times = []
+
     def init_state(self) -> StateGym:
         obs, env_info = self.env.reset(
             seed=self.env_seed)
@@ -61,15 +64,23 @@ class EnvironmentGym(Environment):
         """
 
         if self.env_current_obs != state.current_obs:
+            start = time.time()
             self.env.reset(seed=self.env_seed)
             for action in state.action_history:
                 self.env.step(action)
+            end = time.time()
+            self.env_reset_times.append(end - start)
+            print(f"Env reset time: {end - start}")
 
+        start = time.time()
         obs, reward, terminated, truncated, step_info = self.env.step(
             action)
         if self.obs_preprocessor is not None:
             obs = self.obs_preprocessor(obs)
         self.env_current_obs = obs
+        end = time.time()
+        self.env_step_times.append(end - start)
+        print(f"Env step time: {end - start}")
 
         next_state = StateGym(step_idx=state.step_idx + 1,
                               last_obs=state.current_obs, current_obs=obs,
@@ -81,3 +92,9 @@ class EnvironmentGym(Environment):
 
     def is_terminal(self, state: StateGym) -> bool:
         return state.terminated or state.truncated or state.step_idx >= self.max_steps
+
+    def get_stats(self) -> dict:
+        return {
+            "env_reset_times": self.env_reset_times,
+            "env_step_times": self.env_step_times
+        }

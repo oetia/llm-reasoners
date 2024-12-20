@@ -1,19 +1,14 @@
 import pickle
 from os import PathLike
-import pickle
-from os import PathLike
 import math
 from copy import deepcopy
 from typing import Generic, Optional, NamedTuple, Callable, Hashable
 import itertools
 from abc import ABC
-from abc import ABC
 from collections import defaultdict
 
 import numpy as np
 from tqdm import trange
-
-import time
 
 from .. import SearchAlgorithm, WorldModel, SearchConfig, State, Action, Example, Trace
 
@@ -136,26 +131,6 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
                  aggregator: Optional[MCTSAggregation] = None,
                  disable_tqdm: bool = True,
                  node_visualizer: Callable[[MCTSNode], dict] = lambda x: x.__dict__):
-        """
-        MCTS algorithm
-
-        :param output_trace_in_each_iter: whether to output the trace of the chosen trajectory in each iteration ; the trace is *deepcopy*-ed
-                                          will also output *tree_state_after_each_iter*, which is the *deepcopy*-ed root
-        :param w_exp: the weight of exploration in UCT
-        :param cum_reward: the way to calculate the cumulative reward from each step. Defaults: sum
-        :param calc_q: the way to calculate the Q value from histories. Defaults: np.mean
-        :param simulate_strategy: simulate strategy. Options: 'max', 'sample', 'random', or use a custom function
-        :param output_strategy: the way to output the result. The nodes are not *deepcopy*-ed, so the information is after all iterations
-                                Options: 'max_reward': dfs on the final tree to find a trajectory with max reward using :param cum_reward:
-                                         'follow_max': starting from root, choose the maximum reward child at each step. May output a non-terminal node if dead end
-                                         'max_visit': the terminal node with maximum number of visits
-                                         'max_iter': the trajectory with a terminal node and max reward among those in each iteration
-                                         'last_iter': the last trajectory. May output a non-terminal node if the last iteration leads to a dead end
-                                         'last_terminal_iter': the last trajectory with a terminal node
-                                Outputs *None* if no trajectory with terminal node but required
-        :param uct_with_fast_reward: if True, use fast_reward instead of reward for unvisited children in UCT
-                                     Otherwise, visit the *unvisited* children with maximum fast_reward first
-        """
         super().__init__()
         self.world_model = None
         self.search_config = None
@@ -248,7 +223,6 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
                 node.state, action)
             return action, fast_reward, fast_reward_details
 
-        start = time.time()
         with ThreadPoolExecutor() as executor:
             futures = [executor.submit(get_fast_reward, action)
                        for action in actions]
@@ -264,16 +238,14 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
                     calc_q=self.calc_q
                 )
                 children.append(child)
-        end = time.time()
-        print(f"Total Action proposal time: {end - start}")
 
         # for action in actions:
-        #     fast_rewArd, fast_reward_details = self.search_config.fast_reward(node.state, action)
+        #     fast_reward, fast_reward_details = self.search_config.fast_reward(node.state, action)
         #     child = MCTSNode(state=None, action=action, parent=node,
         #                      fast_reward=fast_reward, fast_reward_details=fast_reward_details, calc_q=self.calc_q)
-        # children.append(child)
+        #     children.append(child)
 
-        node.children = children
+        # node.children = children
 
     def _simulate(self, path: list[MCTSNode]):
         node = path[-1]

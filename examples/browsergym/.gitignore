@@ -5,3 +5,6 @@ Browsergym
 __pycache__/
 **/results/
 **/logs/
+
+*.json
+*.png
