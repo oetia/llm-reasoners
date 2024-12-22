@@ -1,6 +1,11 @@
+from typing import Dict
+import logging
+
 from ..base import AgentModule
 
-import json
+from reasoners.base import GenerateOutput
+
+logger = logging.getLogger(__name__)
 
 
 class BasePolicy(AgentModule):
@@ -15,16 +20,19 @@ class PromptedPolicy(BasePolicy):
         self.prompt_template = prompt_template
         self.parser = parser
 
-    def __call__(self, state, memory, llm_kwargs=None, **kwargs):
+    def __call__(self, state, memory, llm_kwargs=None, **kwargs) -> list[Dict[str, str]]:
         if llm_kwargs is None:
             llm_kwargs = {}
         user_prompt = self.prompt_template.format(state=state, memory=memory, **kwargs)
-
-        llm_output = self.llm(
+        llm_output: GenerateOutput = self.llm(
             system_prompt=str(self.identity),
-            user_prompt=user_prompt,
+            prompt=user_prompt,
             parser=self.parser,
             **llm_kwargs,
         )
 
-        return llm_output
+        logger.debug(f"PromptedPolicy.__call__() `system_prompt`: \n{str(self.identity)}")
+        logger.debug(f"PromptedPolicy.__call__() `user_prompt`: \n{user_prompt}")
+        logger.debug(f"PromptedPolicy.__call__() `llm_output`: \n{llm_output.text}")
+
+        return llm_output.text

@@ -1,11 +1,14 @@
 import os
-import openai
 import numpy as np
-from typing import Optional, Union, Literal
+from typing import Optional, Union, Literal, Callable, Tuple
 import time
+import logging
+
+from openai import OpenAI
 
 from reasoners.base import LanguageModel, GenerateOutput
-from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 PROMPT_TEMPLATE_ANSWER = 'Your response need to be ended with "So the answer is"\n\n'
 PROMPT_TEMPLATE_CONTINUE = "Please continue to answer the last question, following the format of previous examples. Don't say any other words.\n\n"
@@ -41,9 +44,14 @@ class OpenAIModel(LanguageModel):
         else:
             raise ValueError(f"Invalid backend: {self.backend}")
 
+    def __call__(self, *args, **kwargs):
+        return self.generate(*args, **kwargs)
+
     def generate(
         self,
         prompt: Optional[Union[str, list[str]]],
+        system_prompt: Optional[Union[str, list[str]]] = None,
+        base64_image: Optional[str] = None,
         max_tokens: int = None,
         top_p: float = 1.0,
         num_return_sequences: int = 1,
@@ -52,7 +60,12 @@ class OpenAIModel(LanguageModel):
         logprobs: Optional[int] = None,
         temperature=None,
         additional_prompt=None,
-        retry=64,
+        retry=1,
+        parser: Callable[[str], Tuple[str, bool, Optional[str]]] = lambda x: (
+            x,
+            True,
+            None,
+        ),
         **kwargs,
     ) -> GenerateOutput:
 
@@ -60,6 +73,7 @@ class OpenAIModel(LanguageModel):
         temperature = self.temperature if temperature is None else temperature
         logprobs = 0 if logprobs is None else logprobs
         num_return_sequences = kwargs.pop("n", num_return_sequences)
+
         if isinstance(prompt, list):
             assert len(prompt) == 1  # @zj: why can't we pass a list of prompts?
             prompt = prompt[0]
@@ -88,22 +102,71 @@ class OpenAIModel(LanguageModel):
                 # sleep several seconds to avoid rate limit
                 if rate_limit_per_min is not None:
                     time.sleep(60 / rate_limit_per_min)
-                ### GPT 3.5 and higher use a different API
                 if is_instruct_model:
-                    messages = [{"role": "user", "content": prompt}]
+                    messages = (
+                        [
+                            {"role": "system", "content": system_prompt},
+                        ]
+                        if system_prompt is not None
+                        else []
+                    )
+                    if base64_image is not None:
+                        user_msg = {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": base64_image},
+                                },
+                            ],
+                        }
+                    else:
+                        user_msg = {"role": "user", "content": prompt}
+
+                    messages.append(user_msg)
+
+                    logger.debug(f"OpenAIModel.generate() `messages`: \n{messages}")
+                    logger.debug(f"kwargs: {kwargs}")
+                    logger.debug(f"max_tokens: {max_tokens}")
+
+                    # Calculate the size of the payload in bytes
+                    # payload = {
+                    #     "model": self.model,
+                    #     "messages": messages,
+                    #     "max_tokens": max_tokens,
+                    #     "temperature": temperature,
+                    #     "top_p": top_p,
+                    #     "n": num_return_sequences,
+                    #     "stop": stop,
+                    #     **kwargs,
+                    # }
+                    # import json
+
+                    # payload_json = json.dumps(payload)
+                    # payload_size = len(payload_json.encode("utf-8"))
+
+                    # logger.debug(f"Payload size: {payload_size} bytes")
+
                     response = self.client.chat.completions.create(
                         model=self.model,
                         messages=messages,
                         max_tokens=max_tokens,
                         temperature=temperature,
                         top_p=top_p,
+                        # stop=stop,
                         n=num_return_sequences,
-                        stop=stop,
                         **kwargs,
                     )
+
+                    logger.debug(f"OpenAIModel.generate() `response`: \n{response}")
+
                     return GenerateOutput(
-                        text=[choice.message.content for choice in response.choices],
-                        log_prob=None,
+                        text=[
+                            parser(choice.message.content)[0]
+                            for choice in response.choices
+                        ],
+                        log_prob=[choice.logprobs for choice in response.choices],
                     )
                 else:
                     response = self.client.chat.completions.create(
@@ -113,12 +176,12 @@ class OpenAIModel(LanguageModel):
                         temperature=temperature,
                         top_p=top_p,
                         n=num_return_sequences,
-                        stop=stop,
+                        # stop=stop,
                         logprobs=0,
                         **kwargs,
                     )
                     return GenerateOutput(
-                        text=[choice["text"] for choice in response.choices],
+                        text=[parser(choice["text"])[0] for choice in response.choices],
                         log_prob=[choice["logprobs"] for choice in response["choices"]],
                     )
 
@@ -128,7 +191,7 @@ class OpenAIModel(LanguageModel):
 
         # after 64 tries, still no luck
         raise RuntimeError(
-            "GPTCompletionModel failed to generate output, even after 64 tries"
+            f"GPTCompletionModel failed to generate output, even after {retry} tries"
         )
 
     def get_next_token_logits(

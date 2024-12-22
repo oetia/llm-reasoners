@@ -35,12 +35,9 @@ class LLMReasonerPlanner(AgentModule):
 
         self.reasoner_world_model = WorldModelWrapper(world_model, **kwargs)
         self.reasoner_search_config = SearchConfigWrapper(policy, critic, **kwargs)
-        # self.reasoner_search_algo = MCTS(
-        #     output_trace_in_each_iter=True, disable_tqdm=False)
-        # self.reasoner_search_algo = DFS(max_per_state=5, depth=1, prior=False)
         self.reasoner_search_algo = algorithm
         self.reasoner = Reasoner(
-            world_model=self.reasoner_world_model,
+            dynamics=self.reasoner_world_model,
             search_config=self.reasoner_search_config,
             search_algo=self.reasoner_search_algo,
         )

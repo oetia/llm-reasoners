@@ -1,1 +1,0 @@
-{'action': "click('1838')", 'busted_retry': 0, 'n_retry': 0.0}

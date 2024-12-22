@@ -84,7 +84,7 @@ class GenericAgent(Agent):
         return self._obs_preprocessor(obs)
 
     @cost_tracker_decorator
-    def get_action(self, obs):
+    def get_action(self, obs, step: int = None, exp_dir: str = None):
         self.obs_history.append(obs)
 
         main_prompt = MainPrompt(
