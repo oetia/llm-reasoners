@@ -96,7 +96,9 @@ def run_task(args):
     with open(f"{exp_dir}/stats.pkl", "wb") as f:
         pickle.dump(combined_stats, f)
 
-    plan_result = reasoner()
+    # plan_result = reasoner()
+    plan_result = algorithm(world_model, search_config,
+                            checkpoint_file="./checkpoints/mcts_checkpoint_3_20241226_084048.pkl")
 
     with open(f"{exp_dir}/result.pkl", "wb") as f:
         pickle.dump(plan_result, f)

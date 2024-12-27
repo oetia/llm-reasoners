@@ -1,12 +1,9 @@
 import pickle
 from os import PathLike
-import pickle
-from os import PathLike
 import math
 from copy import deepcopy
 from typing import Generic, Optional, NamedTuple, Callable, Hashable
 import itertools
-from abc import ABC
 from abc import ABC
 from collections import defaultdict
 
@@ -14,6 +11,7 @@ import numpy as np
 from tqdm import trange
 
 import time
+from datetime import datetime
 
 from .. import SearchAlgorithm, WorldModel, SearchConfig, State, Action, Example, Trace
 
@@ -50,7 +48,7 @@ class MCTSNode(Generic[State, Action, Example]):
         self.action = action
         self.state = state
         self.parent = parent
-        self.children: 'Optional[list[MCTSNode]]' = None
+        self.children: "Optional[list[MCTSNode]]" = None
         self.calc_q = calc_q
         if parent is None:
             self.depth = 0
@@ -79,8 +77,8 @@ class MCTSResult(NamedTuple):
 
 class MCTSAggregation(Generic[State, Action, Example], ABC):
     def __init__(self, retrieve_answer: Callable[[State], Hashable],
-                 weight_policy: str = 'edge'):
-        assert weight_policy in ['edge', 'edge_inverse_depth', 'uniform']
+                 weight_policy: str = "edge"):
+        assert weight_policy in ["edge", "edge_inverse_depth", "uniform"]
         self.retrieve_answer = retrieve_answer
         self.weight_policy = weight_policy
 
@@ -95,11 +93,11 @@ class MCTSAggregation(Generic[State, Action, Example], ABC):
                 if answer is None:
                     print("MCTSAggregation: no answer retrieved.")
                     return []
-                if self.weight_policy == 'edge':
+                if self.weight_policy == "edge":
                     answer_dict[answer] += cur.reward
-                elif self.weight_policy == 'edge_inverse_depth':
+                elif self.weight_policy == "edge_inverse_depth":
                     answer_dict[answer] += cur.reward / cur.depth
-                elif self.weight_policy == 'uniform':
+                elif self.weight_policy == "uniform":
                     answer_dict[answer] += 1.0
                 return [(answer, cur.depth)]
             depth_list = defaultdict(list)
@@ -109,9 +107,9 @@ class MCTSAggregation(Generic[State, Action, Example], ABC):
                 for answer, depth in child_info:
                     depth_list[answer].append(depth)
             for answer, depths in depth_list.items():
-                if self.weight_policy == 'edge':
+                if self.weight_policy == "edge":
                     answer_dict[answer] += cur.reward
-                elif self.weight_policy == 'edge_inverse_depth':
+                elif self.weight_policy == "edge_inverse_depth":
                     answer_dict[answer] += cur.reward / np.mean(depths)
             return cur_list
 
@@ -130,8 +128,8 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
                  n_iters: int = 10,
                  cum_reward: Callable[[list[float]], float] = sum,
                  calc_q: Callable[[list[float]], float] = np.mean,
-                 simulate_strategy: str | Callable[[list[float]], int] = 'max',
-                 output_strategy: str = 'max_reward',
+                 simulate_strategy: str | Callable[[list[float]], int] = "max",
+                 output_strategy: str = "max_reward",
                  uct_with_fast_reward: bool = True,
                  aggregator: Optional[MCTSAggregation] = None,
                  disable_tqdm: bool = True,
@@ -144,14 +142,14 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         :param w_exp: the weight of exploration in UCT
         :param cum_reward: the way to calculate the cumulative reward from each step. Defaults: sum
         :param calc_q: the way to calculate the Q value from histories. Defaults: np.mean
-        :param simulate_strategy: simulate strategy. Options: 'max', 'sample', 'random', or use a custom function
+        :param simulate_strategy: simulate strategy. Options: "max", "sample", "random", or use a custom function
         :param output_strategy: the way to output the result. The nodes are not *deepcopy*-ed, so the information is after all iterations
-                                Options: 'max_reward': dfs on the final tree to find a trajectory with max reward using :param cum_reward:
-                                         'follow_max': starting from root, choose the maximum reward child at each step. May output a non-terminal node if dead end
-                                         'max_visit': the terminal node with maximum number of visits
-                                         'max_iter': the trajectory with a terminal node and max reward among those in each iteration
-                                         'last_iter': the last trajectory. May output a non-terminal node if the last iteration leads to a dead end
-                                         'last_terminal_iter': the last trajectory with a terminal node
+                                Options: "max_reward": dfs on the final tree to find a trajectory with max reward using :param cum_reward:
+                                         "follow_max": starting from root, choose the maximum reward child at each step. May output a non-terminal node if dead end
+                                         "max_visit": the terminal node with maximum number of visits
+                                         "max_iter": the trajectory with a terminal node and max reward among those in each iteration
+                                         "last_iter": the last trajectory. May output a non-terminal node if the last iteration leads to a dead end
+                                         "last_terminal_iter": the last trajectory with a terminal node
                                 Outputs *None* if no trajectory with terminal node but required
         :param uct_with_fast_reward: if True, use fast_reward instead of reward for unvisited children in UCT
                                      Otherwise, visit the *unvisited* children with maximum fast_reward first
@@ -166,14 +164,14 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         self.cum_reward = cum_reward
         self.calc_q = calc_q
         default_simulate_strategies: dict[str, Callable[[list[float]], int]] = {
-            'max': lambda x: np.argmax(x),
-            'sample': lambda x: np.random.choice(len(x), p=x),
-            'random': lambda x: np.random.choice(len(x)),
+            "max": lambda x: np.argmax(x),
+            "sample": lambda x: np.random.choice(len(x), p=x),
+            "random": lambda x: np.random.choice(len(x)),
         }
         self.simulate_choice: Callable[[list[float]], int] = default_simulate_strategies.get(simulate_strategy,
                                                                                              simulate_strategy)
-        assert output_strategy in ['max_reward', 'follow_max', 'max_visit', 'max_iter', 'last_iter',
-                                   'last_terminal_iter']
+        assert output_strategy in ["max_reward", "follow_max", "max_visit", "max_iter", "last_iter",
+                                   "last_terminal_iter"]
         self.output_strategy = output_strategy
         self.uct_with_fast_reward = uct_with_fast_reward
         self._output_iter: list[MCTSNode] = None
@@ -185,6 +183,7 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         self.aggregator = aggregator
         self.node_visualizer = node_visualizer
         self.aggregator = aggregator
+        self.current_iter = 0
 
     def iterate(self, node: MCTSNode) -> list[MCTSNode]:
         path = self._select(node)
@@ -192,13 +191,13 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
             self._expand(path[-1])
             self._simulate(path)
         cum_reward = self._back_propagate(path)
-        if self.output_strategy == 'max_iter' and path[-1].is_terminal and cum_reward > self._output_cum_reward:
+        if self.output_strategy == "max_iter" and path[-1].is_terminal and cum_reward > self._output_cum_reward:
             self._output_cum_reward = cum_reward
             self._output_iter = path
-        if self.output_strategy == 'last_iter':
+        if self.output_strategy == "last_iter":
             self._output_cum_reward = cum_reward
             self._output_iter = path
-        if self.output_strategy == 'last_terminal_iter' and path[-1].is_terminal:
+        if self.output_strategy == "last_terminal_iter" and path[-1].is_terminal:
             self._output_cum_reward = cum_reward
             self._output_iter = path
         return path
@@ -307,19 +306,27 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         return max((self._dfs_max_reward(path + [child]) for child in visited_children), key=lambda x: x[0])
 
     def search(self):
-        self._output_cum_reward = -math.inf
-        self._output_iter = None
-        self.root = MCTSNode(state=self.world_model.init_state(
-        ), action=None, parent=None, calc_q=self.calc_q)
-        if self.output_trace_in_each_iter:
-            self.trace_in_each_iter = []
 
-        for _ in trange(self.n_iters, disable=self.disable_tqdm, desc='MCTS iteration', leave=False):
+        if self.root is None:
+            self.root = MCTSNode(state=self.world_model.init_state(
+            ), action=None, parent=None, calc_q=self.calc_q)
+            self._output_cum_reward = -math.inf
+            self._output_iter = None
+            if self.output_trace_in_each_iter:
+                self.trace_in_each_iter = []
+            self.current_iter = 0
+
+        for current_iter in trange(self.current_iter, self.n_iters, disable=self.disable_tqdm, desc="MCTS iteration", leave=False):
+            print(f"Current idx: {current_iter}")
+            self.current_iter = current_iter
             path = self.iterate(self.root)
             if self.output_trace_in_each_iter:
                 self.trace_in_each_iter.append(deepcopy(path))
 
-        if self.output_strategy == 'follow_max':
+            checkpoint_file = f"checkpoints/mcts_checkpoint_{self.current_iter}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+            self.save_checkpoint(checkpoint_file)
+
+        if self.output_strategy == "follow_max":
             self._output_iter = []
             cur = self.root
             while True:
@@ -333,7 +340,7 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
                 cur = max(visited_children, key=lambda x: x.reward)
             self._output_cum_reward = self.cum_reward(
                 [node.reward for node in self._output_iter[1::-1]])
-        if self.output_strategy == 'max_reward':
+        if self.output_strategy == "max_reward":
             self._output_cum_reward, self._output_iter = self._dfs_max_reward([
                                                                               self.root])
             if self._output_cum_reward == -math.inf:
@@ -342,11 +349,20 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
     def __call__(self,
                  world_model: WorldModel[State, Action, Example],
                  search_config: SearchConfig[State, Action, Example],
+                 checkpoint_file: Optional[str] = None,
                  log_file: Optional[str] = None,
                  **kwargs) -> MCTSResult:
-        MCTSNode.reset_id()
+
         self.world_model = world_model
         self.search_config = search_config
+
+        print("sanity check")
+        if checkpoint_file is not None:
+            self.load_checkpoint(checkpoint_file)
+            print(f"Checkpoint loaded. Iteration: {self.current_iter}.")
+        else:
+            print("insanity check")
+            MCTSNode.reset_id()
 
         self.search()
 
@@ -381,3 +397,32 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
                 aggregated_result=self.aggregator(result.tree_state),
             )
         return result
+
+    def save_checkpoint(self, checkpoint_file: str) -> None:
+        print(f"Saving checkpoint to {checkpoint_file}...")
+        data = {
+            "root": self.root,
+            "current_iter": self.current_iter,
+            "output_cum_reward": self._output_cum_reward,
+            "output_iter": self._output_iter,
+            "trace_in_each_iter": self.trace_in_each_iter,
+            "node_id_counter": next(MCTSNode.id_iter),
+        }
+        with open(checkpoint_file, "wb") as f:
+            pickle.dump(data, f)
+
+    def load_checkpoint(self, checkpoint_file: str) -> None:
+        print(f"Loading checkpoint from {checkpoint_file}...")
+        with open(checkpoint_file, "rb") as f:
+            data = pickle.load(f)
+
+        self.root = data["root"]
+        self.current_iter = data["current_iter"] + \
+            1  # start from next iteration
+
+        print(
+            f"Current iteration: {self.current_iter}, Total iterations: {self.n_iters}")
+        self._output_cum_reward = data["output_cum_reward"]
+        self._output_iter = data["output_iter"]
+        self.trace_in_each_iter = data["trace_in_each_iter"]
+        MCTSNode.id_iter = itertools.count(data["node_id_counter"])

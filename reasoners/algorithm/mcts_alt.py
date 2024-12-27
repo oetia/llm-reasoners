@@ -278,12 +278,13 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         return max((self._dfs_max_reward(path + [child]) for child in visited_children), key=lambda x: x[0])
 
     def search(self):
-        self._output_cum_reward = -math.inf
-        self._output_iter = None
 
         if self.root is None:
             self.root = MCTSNode(state=self.world_model.init_state(),
                                  action=None, parent=None, calc_q=self.calc_q)
+
+        self._output_cum_reward = -math.inf
+        self._output_iter = None
         if self.output_trace_in_each_iter:
             self.trace_in_each_iter = []
 

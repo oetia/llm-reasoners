@@ -145,7 +145,7 @@ def browsergym_node_data_factory(x: MCTSNode, verbose: bool = False):
     #     f.write(str(dir(x)))
     # print(x.state.action_history)
 
-    current_obs = process_obs_for_viz(x.state.last_obs, verbose, x.id)
+    current_obs = process_obs_for_viz(x.state.current_obs, verbose, x.id)
 
     if not verbose:
         return {
