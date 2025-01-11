@@ -9,3 +9,11 @@ docker rm shopping_admin
 # Stop forum
 docker stop forum
 docker rm forum
+
+# Stop Gitlab
+docker stop gitlab
+docker rm gitlab
+
+# Stop Wikipedia
+docker stop wikipedia
+docker rm wikipedia

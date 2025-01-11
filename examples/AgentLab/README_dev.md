@@ -32,7 +32,7 @@ export BASE_URL="http://localhost"
 export WA_SHOPPING="$BASE_URL:8082/"
 export WA_SHOPPING_ADMIN="$BASE_URL:8083/admin"
 export WA_REDDIT="$BASE_URL:8080"
-export WA_GITLAB="$BASE_URL:9001"
+export WA_GITLAB="$BASE_URL:8023"
 export WA_WIKIPEDIA="$BASE_URL:8081/wikipedia_en_all_maxi_2022-05/A/User:The_other_Kiwix_guy/Landing"
 export WA_MAP="$BASE_URL:443"
 export WA_HOMEPAGE="$BASE_URL:80"
@@ -98,18 +98,29 @@ bash start_docker.sh
 ```
 
 ## Run experiments
+Modify the experimental args in `main.py` and run. Currently, PLAN_AGENT_4o_MINI (the agent w/ MCTS planner via world model) and BASELINE_AGENT_4o_MINI (generic greedy policy) are supported.
+
 ```bash
 python main.py
 ```
 
-Note, it's recommended to relaunch the docker container after each experiment because the browser state might be changed.
+Note, `n_jobs` would start multiple processes in parallel (but visiting the same docker). It would largely speed up the experiment, but for some tasks, it might be unstable due to concurrent access to the browser. e.g., for webarena and visualwebarena, starting multiple processes might consistently lower the success rate by ~2% per the AgentLab member. But this is okay as long as it's a fair comparison in preliminary experiments.
+
+When finishing an experiment, it's recommended to relaunch the docker container because the browser state might be changed.
 ```bash
 bash stop_docker.sh
 ```
 
 
-## Visualize AgentXray
+## Visualize
 ```bash
 export AGENTXRAY_SHARE_GRADIO=true
 agentlab-xray
 ```
+
+## Troubleshooting
+### error code 500
+Empirically, the "gitlab" website in webarena takes relatively long response time, which might cause the browser to stall or raise 500 error. Can test with others, like "reddit" and "shopping" as a start.
+
+### How to host one insteaad of all websites in webarena
+AgentLab (BrowserGym) runs sanity check before each experiment to ping all the websites. If you want to host one website, you can disable certain sanity check under BrowserGym libruary in `experiments/benchmarks/utils.py`, `instance.py`, and `task.py` as a workaround.

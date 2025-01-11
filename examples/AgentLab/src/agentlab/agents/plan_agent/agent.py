@@ -60,7 +60,6 @@ class PlanAgentArgs(GenericAgentArgs):
     planner_args: PlannerArgs = None
     action_set_args: HighLevelActionSetArgs = None
     max_retry: int = 1
-    # observation_type: VisualWebArenaObservationType = "axtree_som"
 
     def __post_init__(self):
         logger.info(f"PlanAgentArgs.__post_init__: {self.action_set_args}")
@@ -96,7 +95,8 @@ class PlanAgent(GenericAgent):
         self.planner = Planner.from_args(args=planner_args, identity=self.agent_identity)
 
     def _make_misc(self):
-        # <from mingkai>
+        """Misc init; should be components imported from llm-reasoners, currently under review."""
+        # TODO: Contain overlap concept with AgentLab, e.g., `memory`, `agent_identity`(i.e., obs space+action space). Can they be compatible?
         self.observation_space = BrowserGymObservationSpace()
         agent_name = "Web Browsing Agent"
         agent_description = "An information and automation assistant who responds to \
@@ -129,7 +129,6 @@ end the task once it sends a message to the user."
                 prompt_template=DefaultStateEncoderPromptTemplate,
                 parser=partial(llm_response_parser, keys=["state"]),
             )
-        # </from mingkai>
 
     def obs_preprocessor(self, obs: dict) -> Any:
         # Optionally override this method to customize observation preprocessing
@@ -137,7 +136,7 @@ end the task once it sends a message to the user."
         return super().obs_preprocessor(obs)
 
     @cost_tracker_decorator
-    def get_action(self, obs, step: int = None, exp_dir: str = None):
+    def get_action(self, obs):
         # Processing obs
         self.obs_history.append(obs)
         obs = self.obs_preprocessor(obs)
@@ -145,7 +144,8 @@ end the task once it sends a message to the user."
         # Update the agent identity with the user instruction
         self.agent_identity.update(user_instruction=obs["goal_object"][0]["text"])
 
-        # Encode, i.e., summarize, the obs into a textual state, to be used by the planner
+        # Encode (summarize) the obs into a textual state, to be used by the planner
+        # TODO: The state encoder might not be a necessity.
         if self.flags.use_state_encoder:
             summary_state = self.state_encoder(
                 obs["axtree_txt"], image_to_jpg_base64_url(obs["screenshot_som"]), self.memory
@@ -158,11 +158,6 @@ end the task once it sends a message to the user."
         output = self.planner(summary_state, self.memory)
         action_plan = output["action_plan"]
         plan_full_result = output["plan_full_result"]
-
-        import pickle
-
-        with open(f"{exp_dir}/plan_step_{step}.pkl", "wb") as f:
-            pickle.dump(plan_full_result, f)
 
         action_plan = "\n".join([f"{i}. {step}" for i, step in enumerate(action_plan, start=1)])
 
@@ -180,7 +175,7 @@ end the task once it sends a message to the user."
             previous_plan=self.plan,
             step=self.plan_step,
             flags=self.flags,
-            action_plan=action_plan,  # the intent (next action) from the planner  # TODO
+            action_plan=action_plan,  # added
         )
         actor_human_prompt = dp.fit_tokens(
             shrinkable=actor_prompt,
@@ -213,7 +208,7 @@ end the task once it sends a message to the user."
         stats["busted_retry"] = actor_ans_dict["busted_retry"]
 
         self.plan = action_plan
-        # self.plan_step = actor_ans_dict.get("step", self.plan_step)  # seems rather redundant
+        # self.plan_step = actor_ans_dict.get("step", self.plan_step)  # seems redundant in this context
         self.actions.append(actor_ans_dict.get("action", None))
         self.memories.append(actor_ans_dict.get("memory", None))
         self.thoughts.append(actor_ans_dict.get("think", None))

@@ -190,7 +190,18 @@ class ActorPrompt(dp.Shrinkable):
         super().__init__()
         self.flags = flags
         self.history = dp.History(obs_history, actions, memories, thoughts, flags.obs)
-        self.instructions = dp.ActorInstructions()
+        if self.flags.enable_chat:
+            self.instructions = dp.ChatInstructions(
+                obs_history[-1]["chat_messages"], extra_instructions=flags.extra_instructions
+            )
+        else:
+            if sum([msg["role"] == "user" for msg in obs_history[-1].get("chat_messages", [])]) > 1:
+                logging.warning(
+                    "Agent is in goal mode, but multiple user messages are present in the chat. Consider switching to `enable_chat=True`."
+                )
+            self.instructions = dp.GoalInstructions(
+                obs_history[-1]["goal_object"], extra_instructions=flags.extra_instructions
+            )
 
         self.obs = dp.Observation(
             obs_history[-1],
@@ -217,10 +228,6 @@ class ActorPrompt(dp.Shrinkable):
         # self.summary_state = f"""\n# Current State (summarized):
         # {summary_state}
         # """
-
-    #         self.action_plan = f"""\n# Planned next few actions (refer to them to select the next action):
-    # {action_plan}
-    # """
 
     @property
     def _prompt(self) -> HumanMessage:
@@ -288,7 +295,9 @@ Make sure to follow the template with proper tags:
     def _parse_answer(self, text_answer):
         ans_dict = {}
         action = parse_html_tags_raise(text_answer, keys=["action"])
+        think = parse_html_tags_raise(text_answer, keys=["think"])
         ans_dict.update(action)
+        ans_dict.update(think)
         return ans_dict
 
 

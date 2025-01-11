@@ -30,9 +30,6 @@ if save_logs:
 # choose your agent or provide a new agent
 agent_args = [PLAN_AGENT_4o_MINI]
 # agent_args = [BASELINE_AGENT_4o_MINI]
-# agent_args = [AGENT_4o_MINI]
-# agent_args = [AGENT_4o]
-
 
 # ## select the benchmark to run on
 # benchmark = "miniwob_tiny_test"
@@ -52,51 +49,32 @@ reproducibility_mode = False
 relaunch = False
 
 ## Number of parallel jobs
-n_jobs = 4  # Make sure to use 1 job when debugging in VSCode
+n_jobs = 5  # Make sure to use 1 job when debugging in VSCode
 # n_jobs = -1  # to use all available cores
 
-tiny_test_task_reddit_names = [
-    # "webarena.410",
-    # "webarena.27",
-    # "webarena.28",
-    # "webarena.66",
-    "webarena.399",
-    # "webarena.596",
-    # "webarena.619",
-    # "webarena.642",
-    # "webarena.718",
-    # "webarena.731",
-    # "webarena.29",
-    # "webarena.30",
-    # "webarena.31",
-    # "webarena.67",
-    # "webarena.68",
-    # "webarena.69",
-    # "webarena.400",
-    # "webarena.401",
-    # "webarena.402",
-    # "webarena.403",
-    # "webarena.405",
-    # "webarena.406",
-    # "webarena.597",
-    # "webarena.598",
-    # "webarena.599",
-]
 tiny_test_task_names = [
     # reddit
     "webarena.27",
     "webarena.66",
     "webarena.399",
+    "webarena.409",
+    "webarena.552",
     "webarena.580",
     "webarena.596",
+    "webarena.600",
     "webarena.610",
     "webarena.615",
     "webarena.620",
     "webarena.627",
+    "webarena.630",
+    "webarena.635",
     "webarena.640",
-    # "webarena.650",
-    # "webarena.718",
-    # "webarena.731",
+    "webarena.650",
+    "webarena.671",
+    "webarena.718",
+    "webarena.720",
+    "webarena.726",
+    "webarena.731",
     # shopping
     "webarena.21",
     "webarena.50",
@@ -107,9 +85,54 @@ tiny_test_task_names = [
     "webarena.189",
     "webarena.225",
     "webarena.239",
+    "webarena.260",
+    "webarena.269",
     "webarena.277",
-    # "webarena.298",
-    # "webarena.319",
+    "webarena.280",
+    "webarena.281",
+    "webarena.282",
+    "webarena.283",
+    "webarena.284",
+    "webarena.298",
+    "webarena.313",
+    "webarena.319",
+    "webarena.323",
+    "webarena.330",
+    "webarena.333",
+    "webarena.351",
+    "webarena.432",
+    "webarena.465",
+    "webarena.520",
+    "webarena.531",
+    "webarena.575",
+    # "webarena.589",
+    # "webarena.655",
+    # "webarena.691",
+    # "webarena.797",
+    # gitlab
+    # "webarena.45",
+    # "webarena.102",
+    # "webarena.132",
+    # "webarena.156",
+    # "webarena.169",
+    # "webarena.175",
+    # "webarena.207",
+    # "webarena.293",
+    # "webarena.303",
+    # "webarena.343",
+    # "webarena.350",
+    # "webarena.357",
+    # "webarena.389",
+    # "webarena.412",
+    # "webarena.415",
+    # "webarena.418",
+    # "webarena.441",
+    # "webarena.442",
+    # "webarena.446",
+    # "webarena.448",
+    # "webarena.481",
+    # "webarena.523",
+    # "webarena.537",
 ]
 
 if __name__ == "__main__":  # necessary for dask backend

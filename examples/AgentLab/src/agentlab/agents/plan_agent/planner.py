@@ -93,11 +93,14 @@ def make_algorithm(args: SearchAlgorithmArgs):
             uct_with_fast_reward=args.uct_with_fast_reward,
         )
     else:
-        # TODO: support more algorithms
+        # TODO: support other algorithms from llm-reasoners
         raise ValueError(f"Algorithm {args.algorithm} not supported")
 
 
 class Planner:
+    """The Planner class.
+    Given the agent's observation, it plans a sequence of actions via search, e.g., MCTS."""
+
     def __init__(self, policy, world_model, critic, algorithm, **kwargs):
         super().__init__()
         self.reasoner = Reasoner(
@@ -107,9 +110,11 @@ class Planner:
         )
 
     def __call__(self, state, memory):
-        # We need to define the llm reasoner
-        example = {"state": state, "memory": copy.deepcopy(memory)}
-        result = self.reasoner(example)  # @zj: is the example necessary?
+        example = {
+            "state": state,
+            "memory": copy.deepcopy(memory),
+        }  # Note: `example` is actually context for the planner
+        result = self.reasoner(example)
         return {
             "action_plan": result.terminal_state["action_history"],
             "plan_full_result": result,
@@ -171,9 +176,13 @@ class Planner:
 
 
 class WorldModelWrapper(WorldModel):
+    """The WorldModelWrapper class. It wraps the WorldModel class in llm-reasoners to override.
+    Given a state and action, it predicts the next state.
+    """
+
     def __init__(self, world_model, max_plan_steps=2):
         super().__init__()
-        self.world_model = world_model  # @zj: A prompted llm, not the `WorldModel` class in LLM-Reasoners. This is a bit confusing there is a `PromptedWorldModel` and a `WorldModel`` class in LLM-Reasoners.
+        self.world_model = world_model  # Note: This is a prompted llm, not the `WorldModel` class in LLM-Reasoners. This is a bit confusing there is a `PromptedWorldModel` and a `WorldModel`` class in LLM-Reasoners.
         self.max_plan_steps = max_plan_steps
 
     def init_state(self):
@@ -185,8 +194,6 @@ class WorldModelWrapper(WorldModel):
         }
 
     def step(self, state, action):
-        """World Model"""
-
         llm_output = self.world_model(state["summary_state"], state["memory"], action["action"])
 
         next_state = {
@@ -205,7 +212,7 @@ class WorldModelWrapper(WorldModel):
         return next_state, {"next_state": next_state}
 
     def is_terminal(self, state):
-        # return False  # FIXME: this is a hack
+        # TODO: Add more sophisticated terminal condition, e.g., reward threshold
         return state["step_idx"] > self.max_plan_steps
 
     def update_example(self, example, **kwargs):
@@ -213,6 +220,10 @@ class WorldModelWrapper(WorldModel):
 
 
 class SearchConfigWrapper(SearchConfig):
+    """The SearchConfigWrapper class. It wraps the SearchConfig class in llm-reasoners to override.
+    It contains the policy and critic (reward function here) in `Planner` to get the actions and rewards required in search.
+    """
+
     def __init__(
         self,
         policy,
@@ -296,7 +307,7 @@ class SearchConfigWrapper(SearchConfig):
             },
         )
 
-        """Assuming the following response format:
+        """Note: Assuming the following response format:
         Thoughts: <your thoughts and reasoning process>
         Status: "task_goal_reached" or "task_goal_not_reached"
         On the right track to success: “yes” or “no”
@@ -322,36 +333,3 @@ class SearchConfigWrapper(SearchConfig):
 
     def reward(self, state, action, **kwargs):
         return sum(kwargs["scores"]) / len(kwargs["scores"]), kwargs
-        # llm_output = self.critic(
-        #     next_state["summary_state"],
-        #     next_state["memory"],
-        #     llm_kwargs={
-        #         "temperature": self.critic_temperature,
-        #         "top_p": self.critic_top_p,
-        #         "n": self.critic_n,
-        #     },
-        # )
-
-        # """Assuming the following response format:
-        # Thoughts: <your thoughts and reasoning process>
-        # Status: "task_goal_reached" or "task_goal_not_reached"
-        # On the right track to success: “yes” or “no”
-        # """
-        # scores = []
-        # thoughts = []
-        # for ans_dict in llm_output:
-        #     if ans_dict["status"] == "task_goal_reached":
-        #         score = 10
-        #     elif ans_dict["on_the_right_track"] == "yes":
-        #         score = 1
-        #     else:
-        #         score = 0
-        #     scores.append(score)
-        #     thoughts.append(ans_dict.get("think"))
-        # reward = sum(scores) / len(scores)
-
-        # logger.debug("Planner critic finished. Here is the scores and thoughts:")
-        # logger.debug(scores)
-        # logger.debug(thoughts)
-
-        # return reward, {"scores": scores, "thoughts": thoughts}
