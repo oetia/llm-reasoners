@@ -8,6 +8,7 @@ git submodule add git@github.com:BlankCheng/AgentLab.git AgentLab
 pip install -e .
 ```
 Refer to [README.md](./README.md) for more steps to set up the AgentLab.
+
 ### 2. Install browsergym
 ```
 git submodule add https://github.com/ServiceNow/BrowserGym.git BrowserGym
@@ -92,9 +93,9 @@ docker load --input postmill-populated-exposed-withimg.tar
 docker run --name forum -p 8080:80 -d postmill-populated-exposed-withimg
 ```
 
-An alternative way to launch the docker container is to use the customized `start_docker.sh` script.
+An alternative way to launch the docker container is to use the customized `docker_scripts/launch_docker.sh` script.
 ```bash
-bash start_docker.sh
+bash docker_scripts/launch_docker.sh
 ```
 
 ## Run experiments
@@ -108,7 +109,7 @@ Note, `n_jobs` would start multiple processes in parallel (but visiting the same
 
 When finishing an experiment, it's recommended to relaunch the docker container because the browser state might be changed.
 ```bash
-bash stop_docker.sh
+bash docker_scripts/stop_docker.sh
 ```
 
 
