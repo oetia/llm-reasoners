@@ -24,6 +24,8 @@ from .agent_model.variables import (
 )
 from .agent_model.agent_prompts import encoder_prompt_template as DefaultStateEncoderPromptTemplate
 from reasoners.lm.openai_model_w_parser import OpenAIModel
+from reasoners.algorithm.mcts import MCTSNode
+from reasoners.visualization import visualize
 
 # AgentLab & BrowserGym imports
 from browsergym.experiments.agent import Agent, AgentInfo
@@ -52,6 +54,30 @@ from .utils import image_to_jpg_base64_url, llm_response_parser
 
 
 logger = logging.getLogger(__name__)
+
+
+# TODO: move to planner class or some other file
+# TODO: add parameter for visualization
+def node_data_factory(x: MCTSNode):
+    if not x.state:
+        return {}
+
+    return {
+        "step_idx": int(x.state["step_idx"]),
+        "action_history": x.state["action_history"],
+        "summary_state": x.state["summary_state"],
+    }
+
+
+def edge_data_factory(x: MCTSNode):
+    if not x.state:
+        return {}
+
+    return {
+        "step_idx": int(x.state["step_idx"]),
+        "action_history": x.state["action_history"],
+        "summary_state": x.state["summary_state"],
+    }
 
 
 @dataclass
@@ -156,6 +182,7 @@ end the task once it sends a message to the user."
         logger.debug(f"Summarizing state done. Here is the state: \n{summary_state}")
 
         output = self.planner(summary_state, self.memory)
+
         action_plan = output["action_plan"]
         plan_full_result = output["plan_full_result"]
 
@@ -223,7 +250,15 @@ end the task once it sends a message to the user."
             think=actor_ans_dict.get("think", None),
             chat_messages=actor_chat_messages,
             stats=stats,
-            extra_info={"chat_model_args": asdict(self.chat_model_args)},
+            extra_info={
+                "chat_model_args": asdict(self.chat_model_args),
+                "visualizer": visualize(
+                    plan_full_result,
+                    open_browser=False,
+                    node_data_factory=node_data_factory,
+                    edge_data_factory=edge_data_factory,
+                ),
+            },
         )
         return actor_ans_dict["action"], agent_info
 

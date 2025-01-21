@@ -291,6 +291,7 @@ clicking the refresh button.
 
             with gr.Tab("Error Report"):
                 error_report = gr.Markdown(elem_classes="error-report", show_copy_button=True)
+
         with gr.Row():
             episode_info = gr.Markdown(label="Episode Info", elem_classes="my-markdown")
             action_info = gr.Markdown(label="Action Info", elem_classes="my-markdown")
@@ -357,6 +358,9 @@ clicking the refresh button.
 
             with gr.Tab("Task Error") as tab_error:
                 task_error = gr.Markdown()
+
+            with gr.Tab("Visualizer") as tab_visualizer_html:
+                visualizer_html = gr.HTML()
 
             with gr.Tab("Logs") as tab_logs:
                 logs = gr.Code(language=None, **code_args)
@@ -465,6 +469,10 @@ clicking the refresh button.
             fn=if_active("Agent Info HTML", 3)(update_agent_info_html),
             outputs=[agent_info_html, screenshot1_agent, screenshot2_agent],
         )
+        step_id.change(
+            fn=if_active("Visualizer", 1)(update_visualizer),
+            outputs=[visualizer_html],
+        )
         step_id.change(fn=if_active("Agent Info MD")(update_agent_info_md), outputs=agent_info_md)
         step_id.change(
             fn=if_active("Prompt tests", 2)(update_prompt_tests),
@@ -488,6 +496,7 @@ clicking the refresh button.
         tab_logs.select(fn=update_logs, outputs=logs)
         tab_stats.select(fn=update_stats, outputs=stats)
         tab_agent_info_html.select(fn=update_agent_info_html, outputs=agent_info_html)
+        tab_visualizer_html.select(fn=update_visualizer, outputs=visualizer_html)
         tab_agent_info_md.select(fn=update_agent_info_md, outputs=agent_info_md)
         tab_prompt_tests.select(
             fn=update_prompt_tests, outputs=[prompt_markdown, prompt_tests_textbox]
@@ -661,6 +670,32 @@ def update_agent_info_html():
         return None, None, None
 
 
+def update_visualizer():
+    global info
+
+    try:
+        agent_info = info.exp_result.steps_info[info.step].agent_info
+        extra_info = agent_info.get("extra_info", None)
+        if not extra_info:
+            return "No visualizer available"
+
+        visualizer_url = extra_info.get("visualizer", None)
+
+        if visualizer_url:
+            iframe = f"""
+<iframe 
+    src="{visualizer_url}"
+    style="width: 100%; height: 600px; border: none; background-color: white;">
+</iframe>
+"""
+            return iframe
+        else:
+            return "No visualizer available"
+
+    except (FileNotFoundError, IndexError):
+        return None
+
+
 def _page_to_iframe(page: str):
     html_bytes = page.encode("utf-8")
     encoded_html = base64.b64encode(html_bytes).decode("ascii")
@@ -796,6 +831,16 @@ def get_action_info(info: Info):
 **Think:**
 
 {code(think)}"""
+
+    extra_info = step_info.agent_info.get("extra_info", None)
+    if extra_info:
+        visualizer_url = extra_info.get("visualizer", None)
+        if visualizer_url:
+            action_info += f"""
+**Visualizer URL:**
+
+{code(visualizer_url)}"""
+
     return action_info
 
 
