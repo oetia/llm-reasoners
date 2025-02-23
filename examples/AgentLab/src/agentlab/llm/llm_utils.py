@@ -11,6 +11,7 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, Union
 from warnings import warn
 
+
 import numpy as np
 import tiktoken
 import yaml
@@ -47,6 +48,8 @@ def retry(
     n_retry: int,
     parser: callable,
     log: bool = True,
+    reward_model_chat: "ChatModel" = None,
+    reward_model_message: "Discussion" = None
 ):
     """Retry querying the chat models with the response from the parser until it
     returns a valid value.
@@ -66,6 +69,8 @@ def retry(
         parser (callable): a function taking a message and retruning a parsed value,
             or raising a ParseError
         log (bool): whether to log the retry messages.
+        reward_model: reward model LLM to use if parser is best_of_n_reward
+        reward_model_message: the prompt for the reward model, if we are using a reward model
 
     Returns:
         dict: the parsed value, with a string at key "action".
@@ -73,19 +78,74 @@ def retry(
     Raises:
         ParseError: if the parser could not parse the response after n_retry retries.
     """
+    # assert that if we are doing reward model ranking that we have a reward_model 
+    assert reward_model_chat is not None if parser.__name__ == 'best_of_n_with_reward' else True
+
     tries = 0
+    # print(messages)
+
     while tries < n_retry:
-        answer = chat(messages)
-        # TODO: could we change this to not use inplace modifications ?
-        messages.append(answer)
-        try:
-            return parser(answer["content"])
-        except ParseError as parsing_error:
-            tries += 1
-            if log:
-                msg = f"Query failed. Retrying {tries}/{n_retry}.\n[LLM]:\n{answer['content']}\n[User]:\n{str(parsing_error)}"
-                logging.info(msg)
-            messages.append(dict(role="user", content=str(parsing_error)))
+        answer = chat(messages) # answer is a dict like {'role': 'assistant', 'content': 'chat completion from ai'} if n = 1, Completion object if n > 1
+        if chat.n == 1: # if we are NOT using best-of-n agent
+            # TODO: could we change this to not use inplace modifications ?
+            messages.append(answer)
+            try:
+                # print('this is the message', messages)
+
+                return parser(answer["content"]) # returns dict with {'think', 'action'}
+            except ParseError as parsing_error:
+                tries += 1
+                if log:
+                    msg = f"Query failed. Retrying {tries}/{n_retry}.\n[LLM]:\n{answer['content']}\n[User]:\n{str(parsing_error)}"
+                    logging.info(msg)
+                messages.append(dict(role="user", content=str(parsing_error)))
+        else: # we are using a Best-of-n agent
+            if parser.__name__ == 'best_of_n_with_reward_parser': # if we are using a reward model to rank answers
+                try:
+                    print('GPT HAS PROPOSED THE FOLLOWING ACTIONS')
+
+                    # answer is a completion object if n > 1
+                    # get a list of action proposals
+                    actions = [choice.message.content for choice in answer.choices]
+                    # print(actions)
+                    
+                    # append action porposals to reward_model_message
+                    proposals = '\n# Action Proposals (You are in charge of ranking these proposals)\n'
+                    for i, action in enumerate(actions):
+                        proposals += f'Proposal #{i+1}\n'
+                        proposals += action + '\n'
+                    
+                    # only add proposals once to reward_model_message
+                    if tries == 0:
+                        reward_model_message.add_text(proposals)
+                    # print(reward_model_message)
+
+                    best_answer_dict, best_answer = parser(reward_model_message, reward_model_chat, actions)      
+                    messages.append(best_answer_dict)
+                    # print(messages)
+
+                    return best_answer                
+                except:
+                    tries += 1
+                    if log:
+                        msg = f"Reward Model query failed. Retrying {tries}/{n_retry}."
+                        logging.info(msg)
+            else: # if we are ranking my log prob 
+                try:
+                    # like in the n==1 case, here we return a string with think and action tag 
+                    best_answer_dict, best_answer = parser(answer)
+                    # print(best_answer)
+
+                    messages.append(best_answer_dict)
+                    print(messages)
+
+                    return best_answer 
+                except ParseError as parsing_error:
+                    tries += 1
+                    if log:
+                        msg = f"Query failed. Retrying {tries}/{n_retry}.\n[LLM]:\n{answer}\n[User]:\n{str(parsing_error)}"
+                        logging.info(msg)
+                    messages.append(dict(role="user", content=str(parsing_error)))
 
     raise ParseError(f"Could not parse a valid value after {n_retry} retries.")
 
@@ -142,11 +202,13 @@ def json_parser(message):
         value = json.loads(message)
         valid = True
         retry_message = ""
+        print('succeeded')
     except json.JSONDecodeError as e:
         warn(e)
         value = {}
         valid = False
         retry_message = "Your response is not a valid json. Please try again and be careful to the format. Don't add any apology or comment, just the answer."
+        print('youre so dumb')
     return value, valid, retry_message
 
 

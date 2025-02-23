@@ -36,6 +36,13 @@ CHAT_MODEL_ARGS_DICT = {
         max_new_tokens=16_384,
         vision_support=True,
     ),
+    "openai/gpt-4o-mini-2024-07-18": OpenAIModelArgs(
+        model_name="gpt-4o-mini-2024-07-18",
+        max_total_tokens=128_000,
+        max_input_tokens=128_000,
+        max_new_tokens=16_384,
+        vision_support=True,
+    ),
     "openai/gpt-4-1106-preview": OpenAIModelArgs(
         model_name="gpt-4-1106-preview",
         max_total_tokens=128_000,

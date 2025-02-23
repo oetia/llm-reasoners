@@ -186,7 +186,7 @@ class PromptElement:
             return {}
 
     def __str__(self):
-        return self.prompt.__str__(warn_if_image=False)
+        return self.prompt.__str__()
 
 
 class Shrinkable(PromptElement, abc.ABC):
@@ -595,6 +595,41 @@ and executed by a program, make sure to follow the formatting instructions.
                 )
             ]
 
+class RewardModelInstructions(PromptElement):
+    def __init__(self, goal_object, visible: bool = True, extra_instructions=None) -> None:
+        super().__init__(visible)
+        self._prompt = [
+            dict(
+                type="text",
+                text=f"""\
+# Instructions
+You are a ranking model that evaluates and scores multiple action proposals
+based on how well they align with the given goal, current browser state, and 
+action history. Your task is to analyze the provided information and assign a 
+numerical score to each action proposal, reflecting its effectiveness in progressing 
+toward the goal.
+
+
+## Goal:
+""",
+            )
+        ]
+
+        self._prompt += goal_object
+
+        if extra_instructions:
+            self._prompt += [
+                dict(
+                    type="text",
+                    text=f"""
+
+## Extra instructions:
+
+{extra_instructions}
+""",
+                )
+            ]
+
 
 class ChatInstructions(PromptElement):
     def __init__(self, chat_messages, visible: bool = True, extra_instructions=None) -> None:
@@ -655,6 +690,13 @@ class SystemPrompt(PromptElement):
 You are an agent trying to solve a web task based on the content of the page and
 user instructions. You can interact with the page and explore, and send messages to the user. Each time you
 submit an action it will be sent to the browser and you will receive a new page."""
+
+class RewardModelSystemPrompt(PromptElement):
+    _prompt = """\
+You are an reward agent helping a web agent solve web tasks. You will be given a number of
+action proposals. Your task is to evalute each of the proposals and assign them a reward.
+Evalute the proposals carefully, as the action with the highest score will be executed.
+"""
 
 
 class ActionPrompt(PromptElement):

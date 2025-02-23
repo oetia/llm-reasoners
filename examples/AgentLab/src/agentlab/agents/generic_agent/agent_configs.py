@@ -5,6 +5,8 @@ from agentlab.experiments import args
 from agentlab.llm.llm_configs import CHAT_MODEL_ARGS_DICT
 
 from .generic_agent import GenericAgentArgs
+from .best_of_n_agent import BestOfNAgentArgs
+from .best_of_n_agent_with_reward import BestOfNWithRewardAgentArgs
 from .generic_agent_prompt import GenericPromptFlags
 
 FLAGS_CUSTOM = GenericPromptFlags(

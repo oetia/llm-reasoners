@@ -570,6 +570,7 @@ def _agents_on_benchmark(
 
     for agent in agents:
         # the agent can adapt (lightly?) to the benchmark
+        print(agent)
         agent.set_benchmark(benchmark, demo_mode)
 
     env_args_list = benchmark.env_args_list

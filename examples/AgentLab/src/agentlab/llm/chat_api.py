@@ -100,6 +100,8 @@ class OpenAIModelArgs(BaseModelArgs):
             model_name=self.model_name,
             temperature=self.temperature,
             max_tokens=self.max_new_tokens,
+            n=self.n,
+            logprobs=self.logprobs
         )
 
 
@@ -282,14 +284,14 @@ class ChatModel(AbstractChatModel):
         self.success = False
         self.error_types = []
 
-        print("==========messages in chat api==========")
-        print("type of messages: ", type(messages))
-        print("messages: ")
-        print(messages)
-        print("all the input params of client:")
-        print("model_name: ", self.model_name)
-        print("temperature: ", self.temperature)
-        print("max_tokens: ", self.max_tokens)
+        # print("==========messages in chat api==========")
+        # print("type of messages: ", type(messages))
+        # print("messages: ")
+        # print(messages)
+        # print("all the input params of client:")
+        # print("model_name: ", self.model_name)
+        # print("temperature: ", self.temperature)
+        # print("max_tokens: ", self.max_tokens)
 
         completion = None
         e = None
@@ -301,6 +303,8 @@ class ChatModel(AbstractChatModel):
                     messages=messages,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
+                    n=self.n,
+                    logprobs=self.logprobs
                 )
 
                 if completion.usage is None:
@@ -328,6 +332,9 @@ class ChatModel(AbstractChatModel):
             tracking.TRACKER.instance, tracking.LLMTracker
         ):
             tracking.TRACKER.instance(input_tokens, output_tokens, cost)
+        
+        if self.n != 1: # if generatin n completions, return the unmodified completion object
+            return completion
 
         return make_assistant_message(completion.choices[0].message.content)
 
@@ -347,6 +354,8 @@ class OpenAIChatModel(ChatModel):
         max_tokens=100,
         max_retry=4,
         min_retry_wait_time=60,
+        n=1,
+        logprobs=False
     ):
         super().__init__(
             model_name=model_name,
@@ -359,6 +368,9 @@ class OpenAIChatModel(ChatModel):
             client_class=OpenAI,
             pricing_func=tracking.get_pricing_openai,
         )
+        self.n=n
+        self.logprobs = logprobs
+
 
 
 class OpenRouterChatModel(ChatModel):

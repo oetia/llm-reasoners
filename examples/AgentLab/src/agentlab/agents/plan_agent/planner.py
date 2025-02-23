@@ -93,6 +93,7 @@ def make_algorithm(args: SearchAlgorithmArgs):
             uct_with_fast_reward=args.uct_with_fast_reward,
         )
     else:
+        # args.algorithm == 'greedy'
         # TODO: support other algorithms from llm-reasoners
         raise ValueError(f"Algorithm {args.algorithm} not supported")
 

@@ -28,6 +28,7 @@ class GenericAgentArgs(AgentArgs):
             pass
 
     def set_benchmark(self, benchmark: bgym.Benchmark, demo_mode):
+        # print('self.flag hereeeeeeeeeeeeeeeeeee', self.flags)
         """Override Some flags based on the benchmark."""
         if benchmark.name.startswith("miniwob"):
             self.flags.obs.use_html = True
@@ -68,7 +69,6 @@ class GenericAgent(Agent):
         flags: GenericPromptFlags,
         max_retry: int = 4,
     ):
-
         self.chat_llm = chat_model_args.make_model()
         self.chat_model_args = chat_model_args
         self.max_retry = max_retry
@@ -98,6 +98,7 @@ class GenericAgent(Agent):
             flags=self.flags,
         )
 
+
         max_prompt_tokens, max_trunc_itr = self._get_maxes()
 
         system_prompt = SystemMessage(dp.SystemPrompt().prompt)
@@ -114,12 +115,16 @@ class GenericAgent(Agent):
             # cause it to be too long
 
             chat_messages = Discussion([system_prompt, human_prompt])
+            print('len of chat messages before retry: ', len(chat_messages))
+            # print(chat_messages)
             ans_dict = retry(
                 self.chat_llm,
                 chat_messages,
                 n_retry=self.max_retry,
                 parser=main_prompt._parse_answer,
             )
+            print('len of chat_messages after retry: ', len(chat_messages))
+            print(ans_dict)
             ans_dict["busted_retry"] = 0
             # inferring the number of retries, TODO: make this less hacky
             ans_dict["n_retry"] = (len(chat_messages) - 3) / 2

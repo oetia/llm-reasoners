@@ -46,7 +46,7 @@ class GenericPromptFlags(dp.Flags):
     flag_group: str = None
 
 
-class MainPrompt(dp.Shrinkable):
+class RewardModelPrompt(dp.Shrinkable):
     def __init__(
         self,
         action_set: AbstractActionSet,
@@ -70,7 +70,7 @@ class MainPrompt(dp.Shrinkable):
                 logging.warning(
                     "Agent is in goal mode, but multiple user messages are present in the chat. Consider switching to `enable_chat=True`."
                 )
-            self.instructions = dp.GoalInstructions(
+            self.instructions = dp.RewardModelInstructions(
                 obs_history[-1]["goal_object"], extra_instructions=flags.extra_instructions
             )
 
@@ -97,7 +97,6 @@ class MainPrompt(dp.Shrinkable):
     @property
     def _prompt(self) -> HumanMessage:
         prompt = HumanMessage(self.instructions.prompt)
-        # print(prompt)
         prompt.add_text(
             f"""\
 {self.obs.prompt}\
@@ -117,16 +116,32 @@ class MainPrompt(dp.Shrinkable):
                 f"""
 # Abstract Example
 
-Here is an abstract version of the answer with description of the content of
-each tag. Make sure you follow this structure, but replace the content with your
-answer:
+Here is an abstract version of your input and ouput. You will get a few thought, action 
+pairs that were proposed, and each is numbered as #1, #2, etc. Your output should be JSON 
+object where the key is the proposal number ('#1' for example), and the value is an 
+interger score from 0 - 100, 100 is the best.
+
+## Abstract Example Input\n""")
+
+        abstract_inputs = ''
+        for i in range(2):
+            abstract_inputs += f"""
+Proposal #{i+1}
 {self.think.abstract_ex}\
 {self.plan.abstract_ex}\
 {self.memory.abstract_ex}\
 {self.criticise.abstract_ex}\
 {self.action_prompt.abstract_ex}\
-"""
-            )
+\n"""
+            
+        prompt.add_text(abstract_inputs)
+
+
+        abstract_output = """
+## Abstract Example Output
+{'#1': integer score for proposal #1, '#2': integer score for proposal #2}"""
+        prompt.add_text(abstract_output)
+
 
         if self.flags.use_concrete_example:
             prompt.add_text(
@@ -134,14 +149,28 @@ answer:
 # Concrete Example
 
 Here is a concrete example of how to format your answer.
-Make sure to follow the template with proper tags:
-{self.think.concrete_ex}\
-{self.plan.concrete_ex}\
-{self.memory.concrete_ex}\
-{self.criticise.concrete_ex}\
-{self.action_prompt.concrete_ex}\
-"""
-            )
+Make sure to follow the template with proper tags:""")
+            prompt.add_text("""
+## Concrete Example Input
+                            
+Proposal #1
+<think>
+The latest post on the Showerthoughts forum was made by the user "bertiewoooster". I need to find all comments made by this user and check how many of them received more downvotes than upvotes. To do this, I will first navigate to my user profile to check the comments I have made.
+</think>
+<action>
+click('677')
+</action>
+
+Proposal #2
+<think>
+The latest post on the Showerthoughts forum was made by the user "bertiewoooster". I need to find all comments made by this user and count how many of them have received more downvotes than upvotes. To do this, I will first navigate to the comments section of the latest post to gather the necessary data.
+</think>
+<action>
+click('120')  # This is the link to the Comments section of the latest post.
+</action>""")
+            prompt.add_text("""
+## Concrete Example Output
+{'#1': 22, '#2': 80}""")
         return self.obs.add_screenshot(prompt)
 
     def shrink(self):
@@ -254,3 +283,5 @@ explore the page to find a way to activate the form.
 
     def _parse_answer(self, text_answer):
         return parse_html_tags_raise(text_answer, optional_keys=["action_draft", "criticise"])
+
+
