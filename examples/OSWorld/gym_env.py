@@ -2,6 +2,20 @@ import gymnasium as gym
 from typing import NamedTuple, Optional, Callable, Any
 from reasoners import Environment
 
+"""
+world_model equivalent under llm-reasoners
+
+currently this is basically just a wrapper around a gym environment 
+implemented by browsergym. i’m not too familiar with osworld, but you may 
+have to deviate a lot from how the step function is implemented here.
+
+backtracking. not sure what osworld has available, but when making a step, 
+you need to make sure that the env is aligned with the state object that 
+mcts is focused on. currently for browsergym there’s a rather naive 
+implementation of just calling env.reset(), then replaying the action_history 
+stored in the currently focused state node. don’t know if this would be 
+viable for osworld, but there’s probably a lot you can optimize here. 
+"""
 
 ActionGym = Any
 
