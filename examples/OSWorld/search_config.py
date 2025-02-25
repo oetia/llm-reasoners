@@ -91,6 +91,8 @@ class SearchConfigOSWorld(SearchConfig):
         action_codes = set()
         for action_proposal in action_proposals:
             if check_validity_of_action_proposal(action_proposal):
+                # TODO : recall OSWorld ACTION_SPACE is a list[Dict], therefore
+                # does not have .to_python_code, and must be redefined
                 action_code = self.action_set.to_python_code(action_proposal)
                 if action_code not in action_codes:
                     action_codes.add(action_code)
