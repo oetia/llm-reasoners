@@ -1,5 +1,6 @@
 import gymnasium as gym
-from typing import NamedTuple, Optional, Callable, Any
+from desktop_env import DesktopEnv
+from typing import Dict, NamedTuple, Optional, Callable, Any
 from reasoners import Environment
 
 """
@@ -16,6 +17,7 @@ implementation of just calling env.reset(), then replaying the action_history
 stored in the currently focused state node. don’t know if this would be 
 viable for osworld, but there’s probably a lot you can optimize here. 
 """
+import time
 
 ActionGym = Any
 
@@ -30,40 +32,55 @@ class StateGym(NamedTuple):
     current_obs: dict
     reward: float
     terminated: bool
-    truncated: bool
 
 
 class EnvironmentGym(Environment):
     """
-    WorldModel, but for gym environments. Instead of being based off of a textual example, takes in a gym environment. An LLM will not be used for generating new states. The gym environment's step function takes care of that. 
+    WorldModel, but for gym environments. Instead of being based off of a textual example, takes in a gym environment. An LLM will not be used for generating new states. The gym environment's step function takes care of that.
 
     Attributes:
     - env (gym.Env): the gym environment
+    - example (dict): the benchmark example we are testing
     - env_seed (int): the seed for the gym environment
     - max_steps (int): the maximum number of steps that can be taken until is_terminal cuts off the episode
     - obs_preprocessor (Optional[Callable[[dict], dict]]): optional function to process the observation returned from resetting/stepping the environment before it is stored into the state tuple
     - env_current_obs (dict): the current observation of the environment which is used to check if a passed in state is aligned with the environment's current state
     """
 
-    def __init__(self, env: gym.Env, env_seed: int = 42, max_steps=20, obs_preprocessor: Optional[Callable[[dict], dict]] = None):
+    def __init__(
+        self,
+        env: DesktopEnv,
+        example: Dict[str, Any],
+        env_seed: int = 42,
+        obs_preprocessor: Optional[Callable[[dict], dict]] = None,
+        task_dir: str = None,
+    ):
         self.env = env
+        self.example = example
         self.env_seed = env_seed
         self.obs_preprocessor = obs_preprocessor
-        self.max_steps = max_steps
         self.env_current_obs: dict = None
+        self.task_dir = task_dir
 
     def init_state(self) -> StateGym:
-        obs, env_info = self.env.reset(
-            seed=self.env_seed)
+        obs = self.env.reset(task_config=self.example, seed=self.env_seed)
         if self.obs_preprocessor is not None:
             obs = self.obs_preprocessor(obs)
         self.env_current_obs = obs
 
-        return StateGym(step_idx=0, last_obs={}, current_obs=obs, action_history=[], reward=0, terminated=False, truncated=False)
+        return StateGym(
+            step_idx=0,
+            last_obs={},
+            current_obs=obs,
+            action_history=[],
+            reward=0,
+            terminated=False,
+            truncated=False,
+        )
 
     def step(self, state: StateGym, action: ActionGym) -> tuple[StateGym, dict]:
         """
-        Takes in a state and action and steps the environment. Should be noted that the environment may not be aligned with the state passed in. If the environment's current state (self.env_current_obs) is not the same as the state passed in, backtracking is needed. The basic implementation of this is rather naive, as it just resets the environment and replays the actions in the state's action_history list. Depending on the environment, there may be far more efficient ways to do so. 
+        Takes in a state and action and steps the environment. Should be noted that the environment may not be aligned with the state passed in. If the environment's current state (self.env_current_obs) is not the same as the state passed in, backtracking is needed. The basic implementation of this is rather naive, as it just resets the environment and replays the actions in the state's action_history list. Depending on the environment, there may be far more efficient ways to do so.
 
         Args:
         - state (StateGym): the state to step from
@@ -75,23 +92,32 @@ class EnvironmentGym(Environment):
         """
 
         if self.env_current_obs != state.current_obs:
-            self.env.reset(seed=self.env_seed)
+            self.env.reset(task_config=self.example, seed=self.env_seed)
             for action in state.action_history:
                 self.env.step(action)
 
-        obs, reward, terminated, truncated, step_info = self.env.step(
-            action)
+        start = time.time()
+        obs, reward, terminated, step_info = self.env.step(action)
         if self.obs_preprocessor is not None:
             obs = self.obs_preprocessor(obs)
         self.env_current_obs = obs
 
-        next_state = StateGym(step_idx=state.step_idx + 1,
-                              last_obs=state.current_obs, current_obs=obs,
-                              action_history=state.action_history +
-                              [action],
-                              reward=reward, terminated=terminated, truncated=truncated)
+        end = time.time()
+        print(f"env step time: {end - start}")
+
+        with open(f"{self.task_dir}/time.txt", "a+") as f:
+            f.write(f"env step time: {end - start}\n")
+
+        next_state = StateGym(
+            step_idx=state.step_idx + 1,
+            last_obs=state.current_obs,
+            current_obs=obs,
+            action_history=state.action_history + [action],
+            reward=reward,
+            terminated=terminated,
+        )
 
         return next_state, {"env_reward": reward}
 
     def is_terminal(self, state: StateGym) -> bool:
-        return state.terminated or state.truncated or state.step_idx >= self.max_steps
+        return state.terminated
