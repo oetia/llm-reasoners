@@ -10,19 +10,27 @@ from gym_env import ActionGym, StateGym
 
 
 class SearchConfigOSWorld(SearchConfig):
-
     """
     SearchConfig for the OSWorld environment.
 
-    Attributes:
-    - action_set (HighLevelActionSet): the action set for the OSWorld environment
-    - llm (LanguageModel): the language model used for generating proposals and evaluations
-    - n_proposals (int): the number of proposals to generate
-    - proposal_temperature (float): the temperature to use for generating proposals
-    - evaluation_temperature (float): the temperature to use for generating evaluations
-    - use_axtree (bool): whether to use the axtree in the prompts
-    - use_html (bool): whether to use the page's html in the prompts
-    - use_screenshot (bool): whether to use the screenshot (base64 encoded) in the prompts
+    Attributes
+    ----------
+    action_set : ACTION_SPACE
+        list of json representing the action set for the OSWorld environment
+    llm : LanguageModel
+        the language model used for generating proposals and evaluations
+    n_proposals : int
+        the number of proposals to generate
+    proposal_temperature : float
+        the temperature to use for generating proposals
+    evaluation_temperature : float 
+        the temperature to use for generating evaluations
+    use_axtree : bool
+        whether to use the axtree in the prompts
+    use_html : bool
+        whether to use the page's html in the prompts
+    use_screenshot : bool
+        whether to use the screenshot (base64 encoded) in the prompts
     """
 
     def __init__(self,
@@ -41,7 +49,7 @@ class SearchConfigOSWorld(SearchConfig):
         self.use_html = use_html
         self.use_screenshot = use_screenshot
 
-    # TODO :  need to use a different proposal prompt. if the main additional 
+    # TODO : Use a different proposal prompt. if the main additional 
     # input is just going to be a screenshot, then most of the complexity in 
     # utils/prompts.py can be cut down. there should already be a screenshot 
     # append functionality in the browsergym prompt, so that should be reusable. 
@@ -58,11 +66,15 @@ class SearchConfigOSWorld(SearchConfig):
         to functions that do not exist. Each function call in the proposal 
         is checked to see if it is valid (check_validity_of_action_proposal).
 
-        Args:
-        - state (StateGym): the state to generate proposals for
+        Parameters
+        ----------
+        state : StateGym
+            the state to generate proposals for
 
-        Returns:
-        - clustered_actions (list[ActionGym]): a list of unique action proposals
+        Returns
+        -------
+        clustered_actions : list[ActionGym]
+            a list of unique action proposals
         """
 
         system_msgs, user_msgs, full_prompt_text = build_propose_prompt(
@@ -86,7 +98,6 @@ class SearchConfigOSWorld(SearchConfig):
 
         return clustered_actions
 
-
     # this is called when mcts generates a new set of nodes, and needs to 
     # decide which to visit next. since there are no visitation statistics 
     # accrued at this point, it relies on an llm to generate an evaluation. 
@@ -101,14 +112,20 @@ class SearchConfigOSWorld(SearchConfig):
         0 to 10, which is then divided by 10 to keep the reward between 
         0 and 1 (important for UCT calculation in MCTS).
 
-        Args:
-        - state (StateGym): the state to evaluate
-        - action (ActionGym): the action to evaluate
+        Parameters
+        ----------
+        state : StateGym
+            the state to evaluate
+        action : ActionGym
+            the action to evaluate
 
-        Returns:
-        - evaluation (float): the evaluation of the state action pair
-        - aux (dict): used to pass the self-evaluation to the search algorithm, 
-            which then passes it to the SearchConfig's reward (not fast_reward) function
+        Returns
+        -------
+        evaluation : float 
+            the evaluation of the state action pair
+        aux : dict
+            used to pass the self-evaluation to the search algorithm, which 
+            then passes it to the SearchConfig's reward (not fast_reward) function
         """
 
         system_msgs, user_msgs, full_prompt_txt = build_evaluation_prompt(
@@ -134,6 +151,19 @@ class SearchConfigOSWorld(SearchConfig):
         from the SearchConfig's fast_reward and EnvironmentGym's step functions. 
         The env_reward for the browsergym environment is sparse, so a massive 
         weight is provided to the environment's reward.
-        """
 
+        Parameters
+        ----------
+        state : StateGym
+            the state to evaluate
+        action : ActionGym
+            the action to evaluate
+        kwargs : kwargs
+            combined aux dictionaries, varying in length
+
+        Returns
+        -------
+        tuple : (float, dict)
+            weighted reward along with the aux dictionaries
+        """
         return kwargs["self_eval"] + 100 * kwargs["env_reward"], kwargs
