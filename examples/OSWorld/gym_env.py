@@ -1,6 +1,7 @@
 import gymnasium as gym
-from desktop_env import DesktopEnv
+from OSWorld.desktop_env.desktop_env import DesktopEnv
 from typing import Dict, NamedTuple, Optional, Callable, Any
+
 from reasoners import Environment
 
 """
@@ -86,7 +87,6 @@ class EnvironmentGym(Environment):
             action_history=[],
             reward=0,
             terminated=False,
-            truncated=False,
         )
 
     def step(self, state: StateGym, action: ActionGym) -> tuple[StateGym, dict]:
@@ -129,8 +129,8 @@ class EnvironmentGym(Environment):
         end = time.time()
         print(f"env step time: {end - start}")
 
-        with open(f"{self.task_dir}/time.txt", "a+") as f:
-            f.write(f"env step time: {end - start}\n")
+        #with open(f"{self.task_dir}/time.txt", "a+") as f:
+        #    f.write(f"env step time: {end - start}\n")
 
         next_state = StateGym(
             step_idx=state.step_idx + 1,

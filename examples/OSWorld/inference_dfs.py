@@ -12,11 +12,11 @@ import sys
 
 from tqdm import tqdm
 
-from OSWorld.gym_env import EnvironmentGym
-from OSWorld.search_config import SearchConfigOSWorld
+from gym_env import EnvironmentGym
+from search_config import SearchConfigOSWorld
 
-from OSWorld.OSWorld.desktop_env.desktop_env import DesktopEnv
-from OSWorld.OSWorld.mm_agents.uitars_agent import UITARSAgent
+from OSWorld.desktop_env.desktop_env import DesktopEnv
+from OSWorld.mm_agents.uitars_agent import UITARSAgent
 from reasoners.algorithm.dfs import DFS
 from reasoners.base import Reasoner
 
@@ -30,14 +30,14 @@ logger.setLevel(logging.DEBUG)
 datetime_str: str = datetime.datetime.now().strftime("%Y%m%d@%H%M%S")
 
 file_handler = logging.FileHandler(
-    os.path.join("logs", "normal-{:}.log".format(datetime_str)), encoding="utf-8"
+    os.path.join("OSWorld/logs", "normal-{:}.log".format(datetime_str)), encoding="utf-8"
 )
 debug_handler = logging.FileHandler(
-    os.path.join("logs", "debug-{:}.log".format(datetime_str)), encoding="utf-8"
+    os.path.join("OSWorld/logs", "debug-{:}.log".format(datetime_str)), encoding="utf-8"
 )
 stdout_handler = logging.StreamHandler(sys.stdout)
 sdebug_handler = logging.FileHandler(
-    os.path.join("logs", "sdebug-{:}.log".format(datetime_str)), encoding="utf-8"
+    os.path.join("OSWorld/logs", "sdebug-{:}.log".format(datetime_str)), encoding="utf-8"
 )
 
 file_handler.setLevel(logging.INFO)
@@ -92,7 +92,7 @@ def config() -> argparse.Namespace:
     # agent config
     parser.add_argument("--max_trajectory_length", type=int, default=15)
     parser.add_argument(
-        "--test_config_base_dir", type=str, default="evaluation_examples"
+        "--test_config_base_dir", type=str, default="OSWorld/evaluation_examples"
     )
 
     # lm config
@@ -105,7 +105,7 @@ def config() -> argparse.Namespace:
     # example config
     parser.add_argument("--domain", type=str, default="all")
     parser.add_argument(
-        "--test_all_meta_path", type=str, default="evaluation_examples/test_small.json"
+        "--test_all_meta_path", type=str, default="OSWorld/evaluation_examples/test_small.json"
     )
 
     parser.add_argument(

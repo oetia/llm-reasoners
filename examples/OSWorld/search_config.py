@@ -2,10 +2,6 @@ import re
 import json
 from reasoners import SearchConfig, LanguageModel
 
-from osworld.desktop_env import ACTION_SPACE
-from utils.prompts import build_propose_prompt, build_evaluation_prompt
-from utils.misc import check_validity_of_action_proposal
-
 from gym_env import ActionGym, StateGym
 
 
