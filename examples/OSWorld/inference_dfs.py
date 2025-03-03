@@ -12,14 +12,13 @@ import sys
 
 from tqdm import tqdm
 
-from gym_env import EnvironmentGym
-from desktop_env.desktop_env import DesktopEnv
-from mm_agents.agent import PromptAgent
-from search_config import SearchConfigOSWorld
+from OSWorld.gym_env import EnvironmentGym
+from OSWorld.search_config import SearchConfigOSWorld
 
-from reasoners import Reasoner
-from reasoners.algorithm import DFS
-from reasoners.lm import OpenAIModel
+from OSWorld.OSWorld.desktop_env.desktop_env import DesktopEnv
+from OSWorld.OSWorld.mm_agents.uitars_agent import UITARSAgent
+from reasoners.algorithm.dfs import DFS
+from reasoners.base import Reasoner
 
 # import wandb
 
@@ -91,7 +90,7 @@ def config() -> argparse.Namespace:
     parser.add_argument("--max_steps", type=int, default=15)
 
     # agent config
-    parser.add_argument("--max_trajectory_length", type=int, default=3)
+    parser.add_argument("--max_trajectory_length", type=int, default=15)
     parser.add_argument(
         "--test_config_base_dir", type=str, default="evaluation_examples"
     )
@@ -108,6 +107,14 @@ def config() -> argparse.Namespace:
     parser.add_argument(
         "--test_all_meta_path", type=str, default="evaluation_examples/test_small.json"
     )
+
+    parser.add_argument(
+        "--total_states", type=int, default=100, help="Total states for DFS."
+    )
+    parser.add_argument(
+        "--max_per_state", type=int, default=3, help="Max per state for DFS."
+    )
+    parser.add_argument("--depth", type=int, default=10, help="Depth limit for DFS.")
 
     # logging related
     parser.add_argument("--result_dir", type=str, default="./results")
@@ -141,8 +148,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
         "result_dir": args.result_dir,
     }
 
-    agent = PromptAgent(
-        model=args.model,
+    agent = UITARSAgent(
         max_tokens=args.max_tokens,
         top_p=args.top_p,
         temperature=args.temperature,
@@ -157,15 +163,9 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
         screen_size=(args.screen_width, args.screen_height),
         headless=args.headless,
         os_type="Ubuntu",
+        provider_name="docker",
         require_a11y_tree=args.observation_type
         in ["a11y_tree", "screenshot_a11y_tree", "som"],
-    )
-
-    llm = OpenAIModel(
-        model=args.model,
-        temperature=args.temperature,
-        max_tokens=args.max_tokens,
-        backend=args.backend,
     )
 
     for domain in tqdm(test_all_meta, desc="Domain"):
@@ -205,12 +205,12 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                 )  # TODO: add obs_preprocessor
 
                 search_config = SearchConfigOSWorld(
-                    action_set=browser_action_set,  # TODO: fix action set
+                    agent=agent,
+                    instruction=instruction,
                     n_proposals=10,
-                    llm=llm,
-                    use_axtree=False,
+                    use_axtree=True,
                     use_html=False,
-                    use_screenshot=True,
+                    use_screenshot=False,
                 )
 
                 algorithm = DFS(
