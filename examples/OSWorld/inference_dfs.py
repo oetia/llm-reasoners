@@ -30,14 +30,16 @@ logger.setLevel(logging.DEBUG)
 datetime_str: str = datetime.datetime.now().strftime("%Y%m%d@%H%M%S")
 
 file_handler = logging.FileHandler(
-    os.path.join("OSWorld/logs", "normal-{:}.log".format(datetime_str)), encoding="utf-8"
+    os.path.join("OSWorld/logs", "normal-{:}.log".format(datetime_str)),
+    encoding="utf-8",
 )
 debug_handler = logging.FileHandler(
     os.path.join("OSWorld/logs", "debug-{:}.log".format(datetime_str)), encoding="utf-8"
 )
 stdout_handler = logging.StreamHandler(sys.stdout)
 sdebug_handler = logging.FileHandler(
-    os.path.join("OSWorld/logs", "sdebug-{:}.log".format(datetime_str)), encoding="utf-8"
+    os.path.join("OSWorld/logs", "sdebug-{:}.log".format(datetime_str)),
+    encoding="utf-8",
 )
 
 file_handler.setLevel(logging.INFO)
@@ -105,7 +107,9 @@ def config() -> argparse.Namespace:
     # example config
     parser.add_argument("--domain", type=str, default="all")
     parser.add_argument(
-        "--test_all_meta_path", type=str, default="OSWorld/evaluation_examples/test_small.json"
+        "--test_all_meta_path",
+        type=str,
+        default="OSWorld/evaluation_examples/test_small.json",
     )
 
     parser.add_argument(
@@ -201,8 +205,11 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
             # example start running
             try:
                 world_model = EnvironmentGym(
-                    env=env, example=example, obs_preprocessor=None
-                )  # TODO: add obs_preprocessor
+                    env=env,
+                    example=example,
+                    obs_preprocessor=None,
+                    task_dir=example_result_dir,
+                )
 
                 search_config = SearchConfigOSWorld(
                     agent=agent,

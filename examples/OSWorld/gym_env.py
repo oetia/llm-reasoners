@@ -1,3 +1,7 @@
+import datetime
+import json
+import logging
+import os
 import gymnasium as gym
 from OSWorld.desktop_env.desktop_env import DesktopEnv
 from typing import Dict, NamedTuple, Optional, Callable, Any
@@ -22,6 +26,8 @@ import time
 
 ActionGym = Any
 
+logger = logging.getLogger("gym_env")
+
 
 class StateGym(NamedTuple):
     step_idx: int
@@ -37,8 +43,8 @@ class StateGym(NamedTuple):
 
 class EnvironmentGym(Environment):
     """
-    WorldModel, but for gym environments. Instead of being based off of a 
-    textual example, takes in a gym environment. An LLM will not be used 
+    WorldModel, but for gym environments. Instead of being based off of a
+    textual example, takes in a gym environment. An LLM will not be used
     for generating new states. The gym environment's step function takes care of that.
 
     Attributes
@@ -50,10 +56,10 @@ class EnvironmentGym(Environment):
     env_seed : int
         the seed for the gym environment (Default 42)
     obs_preprocessor : Optional[Callable[[dict], dict]]
-        optional function to process the observation returned from 
+        optional function to process the observation returned from
         resetting/stepping the environment before it is stored into the state tuple
     env_current_obs : dict
-        the current observation of the environment which is used to check if 
+        the current observation of the environment which is used to check if
         a passed in state is aligned with the environment's current state
     task_dir : str
         directory where configs, logs stored
@@ -91,12 +97,12 @@ class EnvironmentGym(Environment):
 
     def step(self, state: StateGym, action: ActionGym) -> tuple[StateGym, dict]:
         """
-        Takes in a state and action and steps the environment. Should be noted 
-        that the environment may not be aligned with the state passed in. If 
-        the environment's current state (self.env_current_obs) is not the 
-        same as the state passed in, backtracking is needed. The basic 
-        implementation of this is rather naive, as it just resets the 
-        environment and replays the actions in the state's action_history list. 
+        Takes in a state and action and steps the environment. Should be noted
+        that the environment may not be aligned with the state passed in. If
+        the environment's current state (self.env_current_obs) is not the
+        same as the state passed in, backtracking is needed. The basic
+        implementation of this is rather naive, as it just resets the
+        environment and replays the actions in the state's action_history list.
         Depending on the environment, there may be far more efficient ways to do so.
 
         Parameters
@@ -111,7 +117,7 @@ class EnvironmentGym(Environment):
         next_state : StateGym
             the next state after taking the action
         aux : dict
-            used to pass the environment's reward to the search algorithm, 
+            used to pass the environment's reward to the search algorithm,
             which then passes it to the SearchConfig's reward function
         """
 
@@ -122,6 +128,33 @@ class EnvironmentGym(Environment):
 
         start = time.time()
         obs, reward, terminated, step_info = self.env.step(action)
+
+        logger.info("Reward: %.2f", reward)
+        logger.info("Done: %s", terminated)
+        # Save screenshot and trajectory information
+        action_timestamp = datetime.datetime.now().strftime("%Y%m%d@%H%M%S")
+
+        with open(
+            os.path.join(self.task_dir, f"step_{action_timestamp}.png"),
+            "wb",
+        ) as _f:
+            _f.write(obs["screenshot"])
+        with open(os.path.join(self.task_dir, "traj.jsonl"), "a") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "step_num": 0,
+                        "action_timestamp": action_timestamp,
+                        "action": action,
+                        "reward": reward,
+                        "done": terminated,
+                        "info": step_info,
+                        "screenshot_file": f"step_{action_timestamp}.png",
+                    }
+                )
+            )
+            f.write("\n")
+
         if self.obs_preprocessor is not None:
             obs = self.obs_preprocessor(obs)
         self.env_current_obs = obs
@@ -129,8 +162,8 @@ class EnvironmentGym(Environment):
         end = time.time()
         print(f"env step time: {end - start}")
 
-        #with open(f"{self.task_dir}/time.txt", "a+") as f:
-        #    f.write(f"env step time: {end - start}\n")
+        with open(f"{self.task_dir}/time.txt", "a+") as f:
+            f.write(f"env step time: {end - start}\n")
 
         next_state = StateGym(
             step_idx=state.step_idx + 1,
