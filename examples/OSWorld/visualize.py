@@ -7,7 +7,6 @@ from typing import Union
 from reasoners.algorithm.mcts import MCTSNode
 from reasoners.algorithm.beam_search import BeamSearchNode
 from reasoners.algorithm.dfs import DFSNode
-from browsergym.core.action.parsers import highlevel_action_parser
 from gym_env import StateGym
 
 
@@ -23,6 +22,7 @@ import base64
 def compress_base64_image(base64_str, output_format="JPEG", quality=50):
     try:
         # Determine the prefix
+        base64_str = base64.b64encode(base64_str).decode('utf-8')
         prefix = ""
         if base64_str.startswith("data:image"):
             prefix, base64_str = base64_str.split(",", 1)
@@ -48,6 +48,8 @@ def compress_base64_image(base64_str, output_format="JPEG", quality=50):
         # Add the prefix back if it was present
         if prefix:
             compressed_base64_str = f"{prefix},{compressed_base64_str}"
+        else:
+            compressed_base64_str = f"data:image/png;base64,{compressed_base64_str}"
 
         return compressed_base64_str
 
@@ -84,13 +86,16 @@ def process_obs_for_viz(obs: dict[str, any], verbose: bool = False):
             obs["last_action"]
         )
 
+    if "screenshot" in obs:
+        processed_obs["screenshot"] = compress_base64_image(obs["screenshot"])
+
     if not verbose:
         return {
             "screenshot": processed_obs["screenshot"],
             "last_action": processed_obs["clean_last_action"],
         }
 
-    return processed_obs
+    return { "screenshot": processed_obs["screenshot"]  }
 
 
 def simple_parse_action_from_string(proposal: str):
@@ -107,6 +112,7 @@ def browsergym_node_data_factory(x: MCTSNode, verbose: bool = False):
         return {}
     current_obs = process_obs_for_viz(x.state.current_obs, verbose)
 
+    # print(current_obs)
     if not verbose:
         return {
             "step_idx": int(x.state.step_idx),
@@ -119,7 +125,6 @@ def browsergym_node_data_factory(x: MCTSNode, verbose: bool = False):
             "action_history": x.state.action_history,
             "reward": x.state.reward,
             "terminated": x.state.terminated,
-            "truncated": x.state.truncated,
             **current_obs,
         }
 
@@ -127,18 +132,6 @@ def browsergym_node_data_factory(x: MCTSNode, verbose: bool = False):
 def browsergym_edge_data_factory(
     n: Union[MCTSNode, BeamSearchNode, DFSNode], verbose: bool = False
 ) -> EdgeData:
-    function_calls = highlevel_action_parser.search_string(n.action)
-    function_calls = sum(function_calls.as_list(), [])
-
-    python_code = ""
-    for function_name, function_args in function_calls:
-        python_code += (
-            function_name
-            + "("
-            + ", ".join([repr(arg) for arg in function_args])
-            + ")\n"
-        )
-
     if isinstance(n, MCTSNode):
         return EdgeData(
             {
@@ -151,7 +144,7 @@ def browsergym_edge_data_factory(
         return EdgeData(
             {
                 "reward": n.reward,
-                "action": python_code,
+                "action": n.action,
             }
         )
 

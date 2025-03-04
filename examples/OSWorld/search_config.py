@@ -1,5 +1,6 @@
 import re
 import json
+import random
 from reasoners import SearchConfig, LanguageModel
 
 from gym_env import ActionGym, StateGym
@@ -111,7 +112,8 @@ class SearchConfigOSWorld(SearchConfig):
             then passes it to the SearchConfig's reward (not fast_reward) function
         """
 
-        return 1, {"self_eval": 1}
+        r = random.random()
+        return r, {"self_eval": r}
 
         # system_msgs, user_msgs, full_prompt_txt = build_evaluation_prompt(
         #     state.current_obs,
@@ -161,4 +163,5 @@ class SearchConfigOSWorld(SearchConfig):
         tuple : (float, dict)
             weighted reward along with the aux dictionaries
         """
+        
         return kwargs["self_eval"] + 100 * kwargs["env_reward"], kwargs

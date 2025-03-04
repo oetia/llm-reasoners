@@ -26,7 +26,7 @@ import time
 
 ActionGym = Any
 
-logger = logging.getLogger("gym_env")
+logger = logging.getLogger("desktopenv.gym_env")
 
 
 class StateGym(NamedTuple):
@@ -85,6 +85,8 @@ class EnvironmentGym(Environment):
         if self.obs_preprocessor is not None:
             obs = self.obs_preprocessor(obs)
         self.env_current_obs = obs
+        self.env.controller.start_recording()
+
 
         return StateGym(
             step_idx=0,
@@ -128,7 +130,6 @@ class EnvironmentGym(Environment):
 
         start = time.time()
         obs, reward, terminated, step_info = self.env.step(action)
-
         logger.info("Reward: %.2f", reward)
         logger.info("Done: %s", terminated)
         # Save screenshot and trajectory information
