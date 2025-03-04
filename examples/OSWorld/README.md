@@ -2,11 +2,12 @@
 
 ## Cloning the Repository
 
-First, clone the repository:
+First, navigate to `llm-reasoners/examples/OSWorld` and clone the repository:
 
 ```bash
 git clone https://github.com/anananan116/OSWorld.git
 cd OSWorld
+pip install -e # make sure to run this in llm-reasoners/examples/OSWorld/OSWorld 
 ```
 
 ## Installing Conda and Creating a Python Environment
@@ -18,6 +19,9 @@ Create and activate a Python 3.10 environment:
 conda create -p /example/prefix/osworld python=3.10
 conda activate osworld
 ```
+
+- We recommend using prefixes for your conda environment creation, especially
+on servers with limited disk space.
 
 ## Installing Dependencies
 
@@ -34,6 +38,7 @@ pip install -r requirements.txt
 If you are using GPT-4o, export your OpenAI API key and run the following command:
 
 ```bash
+cd 'llm-reasoners/examples/OSWorld/OSWorld'
 export OPENAI_API_KEY=your_openai_api_key
 python run.py --headless --observation_type screenshot --model gpt-4o --result_dir ./results
 ```
@@ -43,13 +48,28 @@ python run.py --headless --observation_type screenshot --model gpt-4o --result_d
 Start a UITARS inference vllm server:
 
 ```bash
+cd 'llm-reasoners/examples/OSWorld/OSWorld'
 python -m vllm.entrypoints.openai.api_server --served-model-name ui-tars --model /data/zihanliu/UI-TARS --limit-mm-per-prompt image=5 -tp 2 --port 8009
 ```
 
 On another terminal tab, run:
 
 ```bash
+cd 'llm-reasoners/examples/OSWorld/OSWorld'
 python run_uitars.py --headless --observation_type screenshot --model ui-tars --result_dir ./results
+```
+
+### Using OSWorld + LLM-Reasoners (Search Algorithms)
+```bash
+cd 'llm-reasoners/examples/OSWorld/'
+python inference_<search_algo>.py \
+   --action_space <the action set to use, e.g. DesktopEnv.ACTION_SPACE> \ 
+   --observation_type <e.g screenshot> \
+   --model <which LLM to use> \
+   --top_p \
+   --temperature \
+   --max_tokens \
+   --max_trajectory_length \
 ```
 
 ## Cleaning Up
