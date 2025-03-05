@@ -173,7 +173,6 @@ class SearchConfigOSWorld(SearchConfig):
 
         # return evaluation, {"self_eval": evaluation}
 
-        # tn_ver
         # # Build the evaluation prompt
         # prompt = UITARS_USR_PROMPT_THOUGHT.format(
         #     action_space=UITARS_ACTION_SPACE,
