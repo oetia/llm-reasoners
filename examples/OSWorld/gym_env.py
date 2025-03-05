@@ -152,7 +152,7 @@ class EnvironmentGym(Environment):
                         "reward": reward,
                         "done": terminated,
                         "info": step_info,
-                        "screenshot_file": f"step_{action_timestamp}.png",
+                        "screenshot_file": f"step_{state.step_idx}_{action_timestamp}.png",
                     }
                 )
             )
