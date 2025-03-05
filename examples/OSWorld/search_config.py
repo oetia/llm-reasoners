@@ -108,9 +108,8 @@ class SearchConfigOSWorld(SearchConfig):
             then passes it to the SearchConfig's reward function
         """
         # use self evaluation to replace random number
-
-        evaluation_prompt = self.agent.create_eval_prompt(self.instruction, state.current_obs)
-        print(evaluation_prompt)
+        evaluation_prompt = self.agent.create_eval_prompt(self.instruction, state.current_obs, action)
+        print(evaluation_prompt[-1])
         response = self.llm.generate(
             evaluation_prompt, num_return_sequences=1, temperature=self.proposal_temperature)
 

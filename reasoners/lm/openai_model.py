@@ -96,8 +96,7 @@ class OpenAIModel(LanguageModel):
                         max_tokens=max_tokens,
                         temperature=temperature,
                         top_p=top_p,
-                        n=num_return_sequences,
-                        stop=stop,
+                        n=num_return_sequences
                     )
                     return GenerateOutput(
                         text=[choice.message.content for choice in response.choices],
