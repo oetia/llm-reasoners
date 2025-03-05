@@ -109,7 +109,7 @@ def config() -> argparse.Namespace:
     )
 
     # lm config
-    parser.add_argument("--model", type=str, default="gpt-4o")
+    parser.add_argument("--model", type=str, default="gpt-4o-mini")
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--top_p", type=float, default=0.9)
     parser.add_argument("--max_tokens", type=int, default=1500)
@@ -380,6 +380,7 @@ if __name__ == "__main__":
     ####### The complete version of the list of examples #######
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     args = config()
+    print("Using ", args.model)
 
     with open(args.test_all_meta_path, "r", encoding="utf-8") as f:
         test_all_meta = json.load(f)
