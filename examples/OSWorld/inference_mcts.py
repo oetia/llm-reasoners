@@ -17,8 +17,11 @@ from search_config import SearchConfigOSWorld
 
 from OSWorld.desktop_env.desktop_env import DesktopEnv
 from OSWorld.mm_agents.uitars_agent import UITARSAgent
+
 from reasoners.algorithm import MCTS
 from reasoners.base import Reasoner
+from reasoners.lm import OpenAIModel
+
 
 # import wandb
 
@@ -113,6 +116,13 @@ def config() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--top_p", type=float, default=0.9)
     parser.add_argument("--max_tokens", type=int, default=1500)
+    parser.add_argument(
+        "--backend",
+        type=str,
+        default="openai",
+        choices=["openai", "sglang"],
+        help="Backend for the model. Currently support `openai` and `sglang`.",
+    )
     parser.add_argument("--stop_token", type=str, default=None)
 
     # example config
@@ -125,10 +135,10 @@ def config() -> argparse.Namespace:
 
     # MCTS config
     parser.add_argument(
-        "--n_iters", type=int, default=1, help="Number of MCTS Iterations."
+        "--n_iters", type=int, default=2, help="Number of MCTS Iterations."
     )
     parser.add_argument(
-        "--depth_limit", type=int, default=2, help="Max depth for MCTS tree."
+        "--depth_limit", type=int, default=10, help="Max depth for MCTS tree."
     )
     parser.add_argument(
         "--w_exp", type=int, default=2, help="Exploration weight of the UCT score for MCTS"
@@ -202,6 +212,13 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
         in ["a11y_tree", "screenshot_a11y_tree", "som"],
     )
 
+    llm = OpenAIModel(
+        model="gpt-4o-mini",
+        temperature=args.temperature,
+        max_tokens=args.max_tokens,
+        backend=args.backend,
+    )
+
     # Run on the Test Set
     for domain in tqdm(test_all_meta, desc="Domain"):
         for example_id in tqdm(test_all_meta[domain], desc="Example", leave=False):
@@ -248,8 +265,9 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                 # create search config
                 search_config = SearchConfigOSWorld(
                     agent=agent,
+                    llm=llm,
                     instruction=instruction,
-                    n_proposals=10,
+                    n_proposals=2,
                     use_axtree=True,
                     use_html=False,
                     use_screenshot=False,

@@ -32,6 +32,7 @@ class SearchConfigOSWorld(SearchConfig):
     def __init__(
         self,
         agent,
+        llm,
         instruction,
         n_proposals: int = 5,
         proposal_temperature: float = 0.7,
@@ -42,6 +43,7 @@ class SearchConfigOSWorld(SearchConfig):
     ) -> None:
         super().__init__()
         self.agent = agent
+        self.llm = llm # for self-eval
         self.instruction = instruction
         self.n_proposals = n_proposals
         self.proposal_temperature = proposal_temperature
@@ -77,15 +79,9 @@ class SearchConfigOSWorld(SearchConfig):
         actions : list[ActionGym]
             a list of unique action proposals
         """
-        response, actions = self.agent.predict(self.instruction, state.current_obs)
-        return actions
 
-    def get_score(self, prompt : str, current_obs : dict) -> list[ActionGym]:
-        """
-        Gets a score based on the list of possible actions and states
-        """
-        score = self.agent.evaluate(prompt, current_obs)
-        return score
+        response, actions = self.agent.predict(self.instruction, state.current_obs, n=self.n_proposals)
+        return actions
 
     # this is called when mcts generates a new set of nodes, and needs to
     # decide which to visit next. since there are no visitation statistics
@@ -115,28 +111,19 @@ class SearchConfigOSWorld(SearchConfig):
             then passes it to the SearchConfig's reward function
         """
         # use self evaluation to replace random number
-        prompt = UITARS_USR_PROMPT_THOUGHT.format(action_space=self.agent.prompt_action_space,
-                                                     language=self.agent.thoughts,
-                                                     instruction=self.instruction
-                                                    )
 
-        # predict based off prompt and current state, then get response value
-        normalized_score = self.get_score(prompt, state.current_obs)
-        print("fast_reward() Response Value: ", normalized_score)
-        
-        # epsilon = 100
-        #
-        # try:
-        #     # fine grain score between 0 and 100, then normalize
-        #     score = float(llm_response)
-        #     score = max(0, min(score, epsilon))
-        #     normalized_score = score / epsilon
-        # except ValueError:
-        #     print("Response returned my self.get_response is not a scalar: ", ValueError)
-        #     # Default to neutral score if parsing fails
-        #     normalized_score = 0.5  
+        evaluation_prompt = self.agent.create_eval_prompt(self.instruction, state.current_obs)
+        print(evaluation_prompt)
+        response = self.llm.generate(
+            evaluation_prompt, num_return_sequences=1, temperature=self.proposal_temperature)
 
-        return normalized_score, {"self_eval": normalized_score}
+        evaluation = response.text[0]
+
+        json_string = re.search(r"\{.*\}", evaluation, re.DOTALL).group()
+        json_object = json.loads(json_string)
+        evaluation = json_object["score"] / 10
+        print(evaluation)
+        return evaluation, {"self_eval": evaluation}
 
     def reward(self, state: StateGym, action: ActionGym, **kwargs) -> tuple[float, dict]:
         """

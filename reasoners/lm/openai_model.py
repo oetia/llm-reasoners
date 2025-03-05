@@ -60,9 +60,9 @@ class OpenAIModel(LanguageModel):
         temperature = self.temperature if temperature is None else temperature
         logprobs = 0 if logprobs is None else logprobs
 
-        if isinstance(prompt, list):
-            assert len(prompt) == 1  # @zj: why can't we pass a list of prompts?
-            prompt = prompt[0]
+        # if isinstance(prompt, list):
+        #     assert len(prompt) == 1  # @zj: why can't we pass a list of prompts?
+        #     prompt = prompt[0]
         if additional_prompt is None and self.additional_prompt is not None:
             additional_prompt = self.additional_prompt
         elif additional_prompt is not None and self.additional_prompt is not None:
@@ -90,10 +90,9 @@ class OpenAIModel(LanguageModel):
                     time.sleep(60 / rate_limit_per_min)
                 ### GPT 3.5 and higher use a different API
                 if is_instruct_model:
-                    messages = [{"role": "user", "content": prompt}]
                     response = self.client.chat.completions.create(
                         model=self.model,
-                        messages=messages,
+                        messages=prompt,
                         max_tokens=max_tokens,
                         temperature=temperature,
                         top_p=top_p,

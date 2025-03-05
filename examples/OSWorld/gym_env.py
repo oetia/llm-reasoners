@@ -129,14 +129,16 @@ class EnvironmentGym(Environment):
                 self.env.step(action)
 
         start = time.time()
-        obs, reward, terminated, step_info = self.env.step(action)
-        logger.info("Reward: %.2f", reward)
-        logger.info("Done: %s", terminated)
-        # Save screenshot and trajectory information
-        action_timestamp = datetime.datetime.now().strftime("%Y%m%d@%H%M%S")
+
+        for a in action:
+            obs, reward, terminated, step_info = self.env.step(a)
+            logger.info("Reward: %.2f", reward)
+            logger.info("Done: %s", terminated)
+            # Save screenshot and trajectory information
+            action_timestamp = datetime.datetime.now().strftime("%Y%m%d@%H%M%S")
 
         with open(
-            os.path.join(self.task_dir, f"step_{action_timestamp}.png"),
+            os.path.join(self.task_dir, f"step_{state.step_idx}_{action_timestamp}.png"),
             "wb",
         ) as _f:
             _f.write(obs["screenshot"])

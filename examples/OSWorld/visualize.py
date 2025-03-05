@@ -137,7 +137,6 @@ def browsergym_edge_data_factory(
             {
                 "Q": n.Q,
                 "self_eval": n.fast_reward_details["self_eval"],
-                "action": python_code,
             }
         )
     else:
