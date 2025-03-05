@@ -59,15 +59,18 @@ cd 'llm-reasoners/examples/OSWorld/OSWorld'
 python run_uitars.py --headless --observation_type screenshot --model ui-tars --result_dir ./results
 ```
 
-### Using OSWorld + LLM-Reasoners (Search Algorithms)
+### Using OSWorld + LLM-Reasoners for Search & Scaling
 ```bash
 cd 'llm-reasoners/examples/OSWorld/'
-python inference_<search_algo>.py \
-   --action_space <the action set to use, e.g. DesktopEnv.ACTION_SPACE> \ 
-   --observation_type <e.g screenshot> \
-   --model <which LLM to use> \
-   --top_p \
+python inference_mcts>.py \
+   --action_space       <e.g. pyautogui> \ 
+   --observation_type   <e.g screenshot> \
+   --n_iters            <Number of MCTS Iterations> \
+   --depth_limit        <Max depth for MCTS tree> \ 
+   --w_exp              <Exploration weight of the UCT score> \
+   --model              <which LLM to use (default 4o-mini)> \
    --temperature \
+   --top_p \
    --max_tokens \
    --max_trajectory_length \
 ```
@@ -85,3 +88,13 @@ When you are done with an experiment:
    ```bash
    ./kill_dockers.sh
    ```
+
+## Visualize Search Tree
+
+One key feature of LLM-Reasoners planner is we provide an online visualizer to smoothly visualize and debug the search tree.
+
+```bash
+python visualize.py \
+    --task_name <task_name> \
+    --exp_dir <exp_dir> \
+```
