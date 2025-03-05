@@ -15,7 +15,7 @@ class SearchConfigOSWorld(SearchConfig):
     ----------
     action_set : ACTION_SPACE
         list of json representing the action set for the OSWorld environment
-    llm : LanguageModel
+    agent : UITARSAgent
         the language model used for generating proposals and evaluations
     n_proposals : int
         the number of proposals to generate
@@ -120,11 +120,11 @@ class SearchConfigOSWorld(SearchConfig):
 
         Returns
         -------
-        evaluation : float
+        normalized_score : float
             the evaluation of the state action pair
-        aux : dict
+        dict : 
             used to pass the self-evaluation to the search algorithm, which
-            then passes it to the SearchConfig's reward (not fast_reward) function
+            then passes it to the SearchConfig's reward function
         """
         # use self evaluation to replace random number
         prompt = UITARS_USR_PROMPT_THOUGHT.format(action_space=self.agent.action_set,
@@ -140,24 +140,14 @@ class SearchConfigOSWorld(SearchConfig):
         try:
             # fine grain score between 0 and 100, then normalize
             score = float(llm_response)
-            score = max(0, min(score, epsilon))  
-            normalized_score = score / epsilon   
+            score = max(0, min(score, epsilon))
+            normalized_score = score / epsilon
         except ValueError:
             print("Response returned my self.get_response is not a scalar: ", ValueError)
             # Default to neutral score if parsing fails
             normalized_score = 0.5  
 
         return normalized_score, {"self_eval": normalized_score}
-
-        # system_msgs, user_msgs, full_prompt_txt = build_evaluation_prompt(
-        #     state.current_obs,
-        #     action,
-        #     self.action_set,
-        #     state.action_history,
-        #     self.use_axtree,
-        #     self.use_html,
-        #     self.use_screenshot,
-        # )
 
         # response = self.llm.generate(
         #     full_prompt_txt,
@@ -173,9 +163,7 @@ class SearchConfigOSWorld(SearchConfig):
 
         # return evaluation, {"self_eval": evaluation}
 
-    def reward(
-        self, state: StateGym, action: ActionGym, **kwargs
-    ) -> tuple[float, dict]:
+    def reward(self, state: StateGym, action: ActionGym, **kwargs) -> tuple[float, dict]:
         """
         Generate a reward for a state action pair after stepping the environment
         with an action. The kwargs passed in are the combined aux dictionaries
