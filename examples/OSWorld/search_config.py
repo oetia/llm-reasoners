@@ -13,8 +13,6 @@ class SearchConfigOSWorld(SearchConfig):
 
     Attributes
     ----------
-    action_set : ACTION_SPACE
-        list of json representing the action set for the OSWorld environment
     agent : UITARSAgent
         the language model used for generating proposals and evaluations
     n_proposals : int
@@ -93,8 +91,8 @@ class SearchConfigOSWorld(SearchConfig):
 
         Returns
         -------
-        clustered_actions : list[ActionGym]
-            a list of unique action proposals
+        response : str / float / int
+            a scalar like value
         """
         response, actions = self.agent.predict(self.instruction, state.current_obs)
         return response
@@ -127,7 +125,7 @@ class SearchConfigOSWorld(SearchConfig):
             then passes it to the SearchConfig's reward function
         """
         # use self evaluation to replace random number
-        prompt = UITARS_USR_PROMPT_THOUGHT.format(action_space=self.agent.action_set,
+        prompt = UITARS_USR_PROMPT_THOUGHT.format(action_space=self.agent.ACTION_SPACE,
                                                      language=self.agent.thoughts,
                                                      instruction=self.instruction
                                                     )
