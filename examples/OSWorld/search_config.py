@@ -4,6 +4,7 @@ import random
 from reasoners import SearchConfig, LanguageModel
 
 from gym_env import ActionGym, StateGym
+from OSWorld.mm_agents.prompts import UITARS_USR_PROMPT_NOTHOUGHT, UITARS_USR_PROMPT_THOUGHT
 
 
 class SearchConfigOSWorld(SearchConfig):
@@ -75,19 +76,33 @@ class SearchConfigOSWorld(SearchConfig):
 
         Returns
         -------
+        actions : list[ActionGym]
+            a list of unique action proposals
+        """
+        response, actions = self.agent.predict(self.instruction, state.current_obs)
+        return actions
+
+    def get_response(self, state: StateGym) -> list[ActionGym]:
+        """
+        Gets a response based on the list of possible actions and states
+
+        Parameters
+        ----------
+        state : StateGym
+            the state to generate proposals for
+
+        Returns
+        -------
         clustered_actions : list[ActionGym]
             a list of unique action proposals
         """
-
         response, actions = self.agent.predict(self.instruction, state.current_obs)
-        return actions
+        return response
 
     # this is called when mcts generates a new set of nodes, and needs to
     # decide which to visit next. since there are no visitation statistics
     # accrued at this point, it relies on an llm to generate an evaluation.
-    # the prompt for this can also be found under utils/prompts.py.
-    # other than the user messages generated to represent the current state,
-    # the prompt should be generalizable to osworld.
+    # the prompt for this can also be found under OSWorld/mm_agents/prompts.py.
     def fast_reward(self, state: StateGym, action: ActionGym) -> tuple[float, dict]:
         """
         Generate an evaluation of a state action pair before using the action
@@ -111,9 +126,28 @@ class SearchConfigOSWorld(SearchConfig):
             used to pass the self-evaluation to the search algorithm, which
             then passes it to the SearchConfig's reward (not fast_reward) function
         """
+        # use self evaluation to replace random number
+        prompt = UITARS_USR_PROMPT_THOUGHT.format(action_space=self.agent.action_set,
+                                                     language=self.agent.thoughts,
+                                                     instruction=self.instruction
+                                                    )
 
-        r = random.random()
-        return r, {"self_eval": r}
+        # predict based off prompt and current state, then get response value
+        llm_response = self.get_response(prompt, state.current_obs)
+        print("fast_reward() Response Value: ", llm_response)
+        epsilon = 100
+
+        try:
+            # fine grain score between 0 and 100, then normalize
+            score = float(llm_response)
+            score = max(0, min(score, epsilon))  
+            normalized_score = score / epsilon   
+        except ValueError:
+            print("Response returned my self.get_response is not a scalar: ", ValueError)
+            # Default to neutral score if parsing fails
+            normalized_score = 0.5  
+
+        return normalized_score, {"self_eval": normalized_score}
 
         # system_msgs, user_msgs, full_prompt_txt = build_evaluation_prompt(
         #     state.current_obs,
