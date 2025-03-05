@@ -54,11 +54,6 @@ class SearchConfigOSWorld(SearchConfig):
         self.use_html = use_html
         self.use_screenshot = use_screenshot
 
-    # TODO : Use a different proposal prompt. if the main additional
-    # input is just going to be a screenshot, then most of the complexity in
-    # utils/prompts.py can be cut down. there should already be a screenshot
-    # append functionality in the browsergym prompt, so that should be reusable.
-    # though the action space definitely needs to be redefined.
     def get_actions(self, state: StateGym) -> list[ActionGym]:
         """
         Generate a list of action proposals for the provided state.
