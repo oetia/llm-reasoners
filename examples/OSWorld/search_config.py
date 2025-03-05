@@ -80,11 +80,11 @@ class SearchConfigOSWorld(SearchConfig):
         response, actions = self.agent.predict(self.instruction, state.current_obs)
         return actions
 
-    def get_score(self, prompt, state: StateGym) -> list[ActionGym]:
+    def get_score(self, prompt : str, current_obs : dict) -> list[ActionGym]:
         """
         Gets a score based on the list of possible actions and states
         """
-        score = self.agent.evaluate(prompt, state.current_obs)
+        score = self.agent.evaluate(prompt, current_obs)
         return score
 
     # this is called when mcts generates a new set of nodes, and needs to
