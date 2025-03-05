@@ -164,6 +164,27 @@ class SearchConfigOSWorld(SearchConfig):
         # return evaluation, {"self_eval": evaluation}
 
     def reward(self, state: StateGym, action: ActionGym, **kwargs) -> tuple[float, dict]:
+        # # Build the evaluation prompt
+        # prompt = UITARS_USR_PROMPT_THOUGHT.format(
+        #     action_space=UITARS_ACTION_SPACE,
+        #     language="English",
+        #     instruction=self.instruction
+        # )
+
+        # # Generate the evaluation using the language model
+        # response = self.agent.predict(prompt, state.current_obs)
+
+        # # Extract the evaluation score from the response
+        # evaluation_text = response.text[0]
+        # json_string = re.search(r"\{.*\}", evaluation_text, re.DOTALL).group()
+        # json_object = json.loads(json_string)
+        # evaluation = json_object["score"] / 10
+
+        return evaluation, {"self_eval": evaluation}
+
+    def reward(
+        self, state: StateGym, action: ActionGym, **kwargs
+    ) -> tuple[float, dict]:
         """
         Generate a reward for a state action pair after stepping the environment
         with an action. The kwargs passed in are the combined aux dictionaries
