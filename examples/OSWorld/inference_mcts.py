@@ -22,7 +22,6 @@ from reasoners.base import Reasoner
 
 # import wandb
 
-
 #  Logger Configs {{{ #
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -68,6 +67,18 @@ logger = logging.getLogger("desktopenv.experiment")
 
 
 def config() -> argparse.Namespace:
+    """
+    Configure all arguments for running an experiment: 
+    - Environment (DesktopEnv)
+    - Language Model (4o / R1 / etc) 
+    - Agent (UITARs)
+    - Search Algorithm (MCTS).
+
+    Returns
+    -------
+    args : argparse.Namespace
+        all parameters for running MCTS with a UITARs Agent on OSWorld
+    """
     parser = argparse.ArgumentParser(
         description="Run end-to-end evaluation on the benchmark"
     )
@@ -112,6 +123,7 @@ def config() -> argparse.Namespace:
         default="OSWorld/evaluation_examples/test_small.json",
     )
 
+    # MCTS config
     parser.add_argument(
         "--n_iters", type=int, default=1, help="Number of MCTS Iterations."
     )
@@ -130,6 +142,20 @@ def config() -> argparse.Namespace:
 
 
 def test(args: argparse.Namespace, test_all_meta: dict) -> None:
+    """
+    Run the task on the OSWorld benchmark test set, logs the score
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        input arguments for the experiment
+    test_all_meta : dict
+        the test data set
+
+    Returns
+    -------
+    None
+    """
     scores = []
     max_steps = args.max_steps
 
@@ -154,6 +180,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
         "result_dir": args.result_dir,
     }
 
+    # create a UITARs Agent
     agent = UITARSAgent(
         max_tokens=args.max_tokens,
         top_p=args.top_p,
@@ -163,6 +190,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
         max_trajectory_length=args.max_trajectory_length,
     )
 
+    # create the Environment
     env = DesktopEnv(
         path_to_vm=args.path_to_vm,
         action_space=agent.action_space,
@@ -174,6 +202,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
         in ["a11y_tree", "screenshot_a11y_tree", "som"],
     )
 
+    # Run on the Test Set
     for domain in tqdm(test_all_meta, desc="Domain"):
         for example_id in tqdm(test_all_meta[domain], desc="Example", leave=False):
             config_file = os.path.join(
@@ -195,6 +224,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
             )
             # run.config.update(cfg_args)
 
+            # create output directory
             example_result_dir = os.path.join(
                 args.result_dir,
                 args.action_space,
@@ -204,8 +234,10 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                 example_id,
             )
             os.makedirs(example_result_dir, exist_ok=True)
+
             # example start running
             try:
+                # Internal world model
                 world_model = EnvironmentGym(
                     env=env,
                     example=example,
@@ -213,6 +245,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                     task_dir=example_result_dir,
                 )
 
+                # create search config
                 search_config = SearchConfigOSWorld(
                     agent=agent,
                     instruction=instruction,
@@ -222,6 +255,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                     use_screenshot=False,
                 )
 
+                # External Search
                 algorithm = MCTS(
                     n_iters=args.n_iters,
                     depth_limit=args.depth_limit,
@@ -231,6 +265,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                     output_trace_in_each_iter=True,
                 )
 
+                # create our reasoner
                 reasoner = Reasoner(world_model, search_config, algorithm)
 
                 plan_result = reasoner()
@@ -238,6 +273,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                 with open(f"{example_result_dir}/result.pkl", "wb") as f:
                     pickle.dump(plan_result, f)
 
+                # evaluate and track the correct outcomes
                 result = env.evaluate()
                 logger.info("Result: %.2f", result)
                 scores.append(result)
@@ -269,8 +305,8 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
 
 
 def get_unfinished(
-    action_space, use_model, observation_type, result_dir, total_file_json
-):
+        action_space, use_model, observation_type, result_dir, total_file_json
+    ):
     target_dir = os.path.join(result_dir, action_space, observation_type, use_model)
 
     if not os.path.exists(target_dir):
