@@ -14,7 +14,9 @@ class SearchConfigOSWorld(SearchConfig):
     Attributes
     ----------
     agent : UITARSAgent
-        the language model used for generating proposals and evaluations
+        the MM-Based Agent for the OSWorld Benchmark
+    llm : OpenAIModel
+        the language model used for prompting and self-evaluations
     n_proposals : int
         the number of proposals to generate
     proposal_temperature : float
