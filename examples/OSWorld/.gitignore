@@ -5,3 +5,5 @@ Browsergym
 __pycache__/
 **/results/
 **/logs/
+
+cache/

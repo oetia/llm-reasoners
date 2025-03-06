@@ -68,12 +68,14 @@ class EnvironmentGym(Environment):
     def __init__(
         self,
         env: DesktopEnv,
+        agent,
         example: Dict[str, Any],
         env_seed: int = 42,
         obs_preprocessor: Optional[Callable[[dict], dict]] = None,
         task_dir: str = None,
     ):
         self.env = env
+        self.agent = agent
         self.example = example
         self.env_seed = env_seed
         self.obs_preprocessor = obs_preprocessor
@@ -81,6 +83,7 @@ class EnvironmentGym(Environment):
         self.task_dir = task_dir
 
     def init_state(self) -> StateGym:
+        self.agent.reset(None)
         obs = self.env.reset(task_config=self.example, seed=self.env_seed)
         if self.obs_preprocessor is not None:
             obs = self.obs_preprocessor(obs)
@@ -124,6 +127,7 @@ class EnvironmentGym(Environment):
         """
 
         if self.env_current_obs != state.current_obs:
+            self.agent.reset(None)
             self.env.reset(task_config=self.example, seed=self.env_seed)
             for action in state.action_history:
                 self.env.step(action)

@@ -114,7 +114,6 @@ class SearchConfigOSWorld(SearchConfig):
         """
         # use self evaluation to replace random number
         evaluation_prompt = self.agent.create_eval_prompt(self.instruction, state.current_obs, action)
-        print(evaluation_prompt[-1])
         response = self.llm.generate(
             evaluation_prompt, num_return_sequences=1, temperature=self.proposal_temperature)
 
@@ -123,7 +122,6 @@ class SearchConfigOSWorld(SearchConfig):
         json_string = re.search(r"\{.*\}", evaluation, re.DOTALL).group()
         json_object = json.loads(json_string)
         evaluation = json_object["score"] / 10
-        print(evaluation)
         return evaluation, {"self_eval": evaluation}
 
     def reward(self, state: StateGym, action: ActionGym, **kwargs) -> tuple[float, dict]:

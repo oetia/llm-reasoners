@@ -138,7 +138,7 @@ def config() -> argparse.Namespace:
         "--n_iters", type=int, default=2, help="Number of MCTS Iterations."
     )
     parser.add_argument(
-        "--depth_limit", type=int, default=10, help="Max depth for MCTS tree."
+        "--depth_limit", type=int, default=15, help="Max depth for MCTS tree."
     )
     parser.add_argument(
         "--w_exp", type=int, default=2, help="Exploration weight of the UCT score for MCTS"
@@ -257,6 +257,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                 # Internal world model
                 world_model = EnvironmentGym(
                     env=env,
+                    agent=agent,
                     example=example,
                     obs_preprocessor=None,
                     task_dir=example_result_dir,
@@ -267,7 +268,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                     agent=agent,
                     llm=llm,
                     instruction=instruction,
-                    n_proposals=2,
+                    n_proposals=5,
                     use_axtree=True,
                     use_html=False,
                     use_screenshot=False,
@@ -313,7 +314,7 @@ def test(args: argparse.Namespace, test_all_meta: dict) -> None:
                 with open(os.path.join(example_result_dir, "traj.jsonl"), "a") as f:
                     f.write(
                         json.dumps(
-                            {"Error": f"Time limit exceeded in {domain}/{example_id}"}
+                            {"Error": f"Error in {domain}/{example_id}: {e}"}
                         )
                     )
                     f.write("\n")
