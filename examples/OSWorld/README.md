@@ -63,6 +63,7 @@ python run_uitars.py --headless --observation_type screenshot --model ui-tars --
 ```bash
 cd 'llm-reasoners/examples/OSWorld/'
 python inference_mcts>.py \
+   --test_all_meta_path <What test set to use e.g. small/all/subset>
    --action_space       <e.g. pyautogui> \ 
    --observation_type   <e.g screenshot> \
    --n_iters            <Number of MCTS Iterations> \
