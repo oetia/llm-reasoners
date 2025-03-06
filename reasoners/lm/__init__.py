@@ -7,4 +7,5 @@ from .openai_model import OpenAIModel
 from .exllama_model import ExLlamaModel
 from .gemini_model import BardCompletionModel
 from .anthropic_model import ClaudeModel
+from .sglang_model import SGLangModel
 from .deepseek_model import DeepseekModel
