@@ -12,7 +12,6 @@ PROMPT_TEMPLATE_CONTINUE = "Please continue to answer the last question, followi
 # basically the exact same api as OpenAIModel
 # copy pasted and removed sections that don't apply
 
-
 class DeepseekModel(LanguageModel):
     def __init__(
         self,
@@ -42,7 +41,7 @@ class DeepseekModel(LanguageModel):
             )
         else:
             raise ValueError(f"Invalid backend: {self.backend}")
-
+            
     def generate(
         self,
         prompt: Optional[Union[str, list[str]]],
@@ -91,7 +90,6 @@ class DeepseekModel(LanguageModel):
                     n=1,
                     stop=stop,
                 )
-
                 return GenerateOutput(
                     text=[choice.message.content for choice in response.choices],
                     log_prob=None,
