@@ -204,6 +204,15 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
         self.aggregator = aggregator
         self.task_dir = task_dir
 
+    def log(self, text: str):
+        current_time = datetime.now()
+        formatted_time = current_time.strftime("[%Y%m%d] - %H:%M.%S")
+        if text.startswith("\n"):
+            text = f"\n{formatted_time}\n{text.lstrip()}"
+        print(text)
+        with open(f"{self.task_dir}/log.txt", "a+") as f:
+            f.write(f"{text}\n")
+
     def iterate(self, node: MCTSNode) -> list[MCTSNode]:
         path = self._select(node)  # @zj: is path[-1] this the highest UCT score node?
         if not self._is_terminal_with_depth_limit(path[-1]):
@@ -270,7 +279,35 @@ class MCTS(SearchAlgorithm, Generic[State, Action, Example]):
             return
 
         children = []
-        actions = self.search_config.get_actions(node.state)
+        actions_info = self.search_config.get_actions(node.state)
+
+        def get_fast_reward(action_kv):
+            action_code, tup = action_kv
+            function_calls, proposal, count = tup
+            fast_reward, fast_reward_details = self.search_config.fast_reward(
+                node.state, proposal)
+            self.log(f"{function_calls}\n - (count={count}, fast_reward={fast_reward}, total={count + fast_reward})")
+            return proposal, (fast_reward + count) / 10, fast_reward_details
+
+        self.log("\nstarting evaluation")
+        start = time.time()
+        with ThreadPoolExecutor(max_workers=64) as executor:
+            futures = [executor.submit(get_fast_reward, action_kv)
+                       for action_kv in actions_info.items()]
+
+            for future in as_completed(futures):
+                action, fast_reward, fast_reward_details = future.result()
+                child = MCTSNode(
+                    state=None,
+                    action=action,
+                    parent=node,
+                    fast_reward=fast_reward,
+                    fast_reward_details=fast_reward_details,
+                    calc_q=self.calc_q
+                )
+                children.append(child)
+        end = time.time()
+        self.log(f"total action evaluation time: {end - start}")
 
         def get_fast_reward(action):
             fast_reward, fast_reward_details = self.search_config.fast_reward(

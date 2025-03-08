@@ -1,5 +1,4 @@
 import os
-import openai
 import numpy as np
 from typing import Optional, Union, Literal
 import time
@@ -7,29 +6,29 @@ import time
 from reasoners.base import LanguageModel, GenerateOutput
 from openai import OpenAI
 import pickle
-PROMPT_TEMPLATE_ANSWER = 'Your response need to be ended with "So the answer is"\n\n'
-PROMPT_TEMPLATE_CONTINUE = "Please continue to answer the last question, following the format of previous examples. Don't say any other words.\n\n"
+from datetime import datetime
 
 
 class OpenAIModel(LanguageModel):
     def __init__(
         self,
+        backend: Literal["openai", "sglang"],
         model: str,
-        max_tokens: int = 2048,
-        temperature=0.0,
-        additional_prompt=None,
-        backend: Literal["openai", "sglang"] = "openai",
-        is_instruct_model: bool = False,
-        task_dir: str = None
+        task_dir: str
     ):
-        self.model = model
-        self.max_tokens = max_tokens
-        self.temperature = temperature
         self.backend = backend
-        self.additional_prompt = additional_prompt
-        self.is_instruct_model = is_instruct_model
+        self.model = model
         self.task_dir = task_dir
         self.__init_client__()
+
+    def log(self, text: str):
+        current_time = datetime.now()
+        formatted_time = current_time.strftime("[%Y%m%d] - %H:%M.%S")
+        if text.startswith("\n"):
+            text = f"\n{formatted_time}\n{text.lstrip()}"
+        print(text)
+        with open(f"{self.task_dir}/log.txt", "a+") as f:
+            f.write(f"{text}\n")
 
     def __init_client__(self):
         if self.backend == "openai":
@@ -38,7 +37,8 @@ class OpenAIModel(LanguageModel):
             )
         elif self.backend == "sglang":
             self.client = OpenAI(
-                base_url=os.getenv("SGLANG_API_URL", None),
+                base_url="http://127.0.0.1:30000/v1",
+                api_key="None"
             )
         else:
             raise ValueError(f"Invalid backend: {self.backend}")
@@ -46,99 +46,54 @@ class OpenAIModel(LanguageModel):
     def generate(
         self,
         prompt: Optional[Union[str, list[str]]],
-        max_tokens: int = None,
-        top_p: float = 1.0,
         num_return_sequences: int = 1,
-        rate_limit_per_min: Optional[int] = 20,
-        stop: Optional[str] = None,
-        logprobs: Optional[int] = None,
-        temperature=None,
-        additional_prompt=None,
-        retry=64,
+        temperature: float = 0.6,
+        max_new_tokens: int = 8196,
+        n_retry=4,
         **kwargs,
     ) -> GenerateOutput:
-
-        max_tokens = self.max_tokens if max_tokens is None else max_tokens
-        temperature = self.temperature if temperature is None else temperature
-        logprobs = 0 if logprobs is None else logprobs
-
-        # if isinstance(prompt, list):
-        #     assert len(prompt) == 1  # @zj: why can't we pass a list of prompts?
-        #     prompt = prompt[0]
-        if additional_prompt is None and self.additional_prompt is not None:
-            additional_prompt = self.additional_prompt
-        elif additional_prompt is not None and self.additional_prompt is not None:
-            print("Warning: additional_prompt set in constructor is overridden.")
-        if additional_prompt == "ANSWER":
-            prompt = PROMPT_TEMPLATE_ANSWER + prompt
-        elif additional_prompt == "CONTINUE":
-            prompt = PROMPT_TEMPLATE_CONTINUE + prompt
-
-        is_instruct_model = self.is_instruct_model
-        if not is_instruct_model:
-            # Recheck if the model is an instruct model with model name
-            model_name = self.model.lower()
-            if (
-                ("gpt-3.5" in model_name)
-                or ("gpt-4" in model_name)
-                or ("instruct" in model_name)
-            ):
-                is_instruct_model = True
-
-        for i in range(1, retry + 1):
+        self.log("llm_generate()")
+        for i in range(1, n_retry + 1):
             try:
-                # sleep several seconds to avoid rate limit
-                if rate_limit_per_min is not None:
-                    time.sleep(60 / rate_limit_per_min)
-                ### GPT 3.5 and higher use a different API
-                if is_instruct_model:
-                    response = self.client.chat.completions.create(
-                        model=self.model,
-                        messages=prompt,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        top_p=top_p,
-                        n=num_return_sequences
-                    )
+                messages = [{"role": "user", "content": prompt}]
+                if "deepseek-r1" in self.model.lower():
+                    messages.append({"role": "assistant", "content": "<think>\n"})
 
-                    # save response pickle object
-                    utc_timestamp = int(time.time())
-                    with open(
-                        os.path.join(self.task_dir, f"{utc_timestamp}.pkl"), "wb"
-                    ) as f:
-                        pickle.dump(response, f)
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    max_tokens=max_new_tokens,
+                    temperature=temperature,
+                    n=num_return_sequences,
+                    **kwargs,
+                )
+
+                utc_timestamp = int(time.time())
+                # save prompt
+                with open(os.path.join(self.task_dir, f"{utc_timestamp}-prompt.txt"), "w+") as f:
+                    for message in messages:
+                        f.write(message["content"])
+                # save responses
+                for idx, choice in enumerate(response.choices):
+                    with open(os.path.join(self.task_dir, f"{utc_timestamp}-response-{idx+1}.txt"), "w+") as f:
+                        f.write(choice.message.content)
+                # save response pickle object
+                with open(os.path.join(self.task_dir, f"{utc_timestamp}.pkl"), "wb") as f:
+                    pickle.dump(response, f)
 
 
-                    return GenerateOutput(
-                        text=[choice.message.content for choice in response.choices],
-                        log_prob=None,
-                        # prompt_tokens=response.usage.prompt_tokens,
-                        # completion_tokens=response.usage.completion_tokens,
-                    )
-                else:
-                    response = self.client.chat.completions.create(
-                        model=self.model,
-                        prompt=prompt,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        top_p=top_p,
-                        n=num_return_sequences,
-                        stop=stop,
-                        logprobs=0,
-                        **kwargs,
-                    )
-                    return GenerateOutput(
-                        text=[choice["text"] for choice in response.choices],
-                        log_prob=[choice["logprobs"] for choice in response["choices"]],
-                    )
+                return GenerateOutput(
+                    text=[choice.message.content for choice in response.choices],
+                    log_prob=None,
+                )
 
             except Exception as e:
-                print(f"An Error Occured: {e}, sleeping for {i} seconds")
+                self.log(f"An Error Occured: {e}, sleeping for {i} seconds")
                 time.sleep(i)
 
         # after 64 tries, still no luck
         raise RuntimeError(
-            "GPTCompletionModel failed to generate output, even after 64 tries"
+            f"GPTCompletionModel failed to generate output, even after {n_retry} tries"
         )
 
     def get_next_token_logits(
@@ -155,16 +110,3 @@ class OpenAIModel(LanguageModel):
         self, prompt: Union[str, list[str]], **kwargs
     ) -> list[np.ndarray]:
         raise NotImplementedError("GPTCompletionModel does not support get_log_prob")
-
-
-if __name__ == "__main__":
-    model = OpenAIModel(model="gpt-3.5-turbo")
-    print("-------OpenAI client-------")
-    print(model.generate(["How to go to Shanghai from Beijing?"]))
-    print("-------SGLang client-------")
-    model = OpenAIModel(
-        model="meta-llama/Llama-3.1-8B-Instruct",
-        backend="sglang",
-        is_instruct_model=True,
-    )
-    print(model.generate(["How to go to Shanghai from Beijing?"]))
