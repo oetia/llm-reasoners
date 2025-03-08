@@ -12,6 +12,7 @@ def get_stats(tag: str, results_dir: str):
   time_stats = get_time_stats(tag, results_dir)
   iteration_stats = get_mcts_stats(tag, results_dir)
   # stats = list(chain(success_stats, token_stats, time_stats))
+
   stats = list(chain(success_stats, token_stats, time_stats, iteration_stats))
   return stats
 
@@ -20,7 +21,6 @@ def get_success_stats(tag: str, results_dir: str):
   successes = 0
   failures = 0
   errors = 0
-
   exp_names = os.listdir(results_dir)
   for exp_name in exp_names:
     if tag in exp_name:
@@ -146,13 +146,6 @@ def get_time_stats(tag: str, results_dir: str):
           except:
             pass
 
-          
-          task_time_stats_rows.append([task_name, total_time_taken, total_proposal_time, total_evaluation_time, total_envstep_time])
-  task_time_df = pd.DataFrame(task_time_stats_rows,
-                             columns=["task_name", "total_time_taken", "total_proposal_time", "total_evaluation_time", "total_envstep_time"])
-  
-  total_time = task_time_df["total_time_taken"].sum()
-  avg_time = task_time_df["total_time_taken"].mean()
   avg_prop_time = task_time_df["total_proposal_time"].mean()
   avg_eval_time = task_time_df["total_evaluation_time"].mean()
   avg_step_time = task_time_df["total_envstep_time"].mean()
@@ -222,7 +215,6 @@ def find_completion_depth(mcts_result):
   return len(mcts_result.trace_in_each_iter[-1])
 
 def find_max_depth(mcts_result):
-  # print(mcts_result.trace_in_each_iter)
   return len(max(mcts_result.trace_in_each_iter, key=lambda x: len(x)))
 
 def get_env_steps_taken(mcts_result):
@@ -231,5 +223,3 @@ def get_env_steps_taken(mcts_result):
   for trace in mcts_result.trace_in_each_iter[:completion_iteration+1]:
     steps_taken += len(trace)
   return steps_taken
-
-# get_stats("d5", "/data/samuel/results-r132bfp8")

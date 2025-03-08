@@ -54,7 +54,7 @@ class DeepseekModel(LanguageModel):
             )
         else:
             raise ValueError(f"Invalid backend: {self.backend}")
-
+            
     def generate(
         self,
         prompt: Optional[Union[str, list[str]]],
@@ -110,7 +110,6 @@ class DeepseekModel(LanguageModel):
                 with open(response_path, "wb") as f:
                     pickle.dump(response, f)
                 )
-
                 return GenerateOutput(
                     text=[choice.message.content for choice in response.choices],
                     log_prob=None,

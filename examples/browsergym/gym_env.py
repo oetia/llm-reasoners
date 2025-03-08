@@ -39,7 +39,6 @@ class EnvironmentGym(Environment):
         self.env_current_obs: dict = None
         self.task_dir = task_dir
 
-
     def log(self, text: str):
         current_time = datetime.now()
         formatted_time = current_time.strftime("[%Y%m%d] - %H:%M.%S")
@@ -90,7 +89,6 @@ class EnvironmentGym(Environment):
             self.align_env(state)
 
 
-        # TODO - add in code to handle time outs
         start = time.time()
         obs, reward, terminated, truncated, step_info = self.env.step(
             action)
@@ -99,6 +97,12 @@ class EnvironmentGym(Environment):
         self.env_current_obs = obs
         end = time.time()
         self.log(f"env step time: {end - start}")
+
+        end = time.time()
+        print(f"env step time: {end - start}")
+
+        with open(f"{self.task_dir}/time.txt", "a+") as f:
+            f.write(f"env step time: {end - start}\n")
 
         next_state = StateGym(step_idx=state.step_idx + 1,
                               last_obs=state.current_obs, current_obs=obs,
